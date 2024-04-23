@@ -20,6 +20,7 @@ summary(exp.po.olre)
 
 
 ###### Mexican Jay problem-solving survival analysis #####
+#Latency to solve a door on a puzzle box
 jsolv = read.csv("jaySolveData.csv")
 jsolv$olre = factor(1:68)
 

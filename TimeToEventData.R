@@ -58,8 +58,8 @@ data.naive = SLraw[which(SLraw$Experienced == "No"),] #remove Experienced jay da
 data.naive = data.naive[-which(str_detect(data.naive$Behav, "scrounge")),] #remove scrounges
 
 tmp = data.naive %>% 
-  dplyr::select(Trial, observe, Attm, success, ID, Group, Tot.end) %>% 
-  arrange(Group, ID, Trial, Tot.end)
+  dplyr::select(observe, Attm, success, ID, Group,Trial, Tot.end) %>% 
+  arrange(Group, ID, Trial,Tot.end)
 
 ### create a dataframe with the time intervals between each event 
 #i.e., any time an event happens where a jay did something or saw something, 
@@ -85,7 +85,7 @@ for(i in unique(df.tmp$ID)){ #for each bird
     df.tmp$observe[which(df.tmp$ID==i & df.tmp$Time2==j)] = nrow(tmp2)
     
     tmp2 = data.naive %>% 
-      filter(ID==i & Tot.end <= j & Attm == 1) #find the first time the bird interacted
+      filter(ID==i & Tot.end <= j & Attm == 1) #find the first time the bird attempted
     df.tmp$Attm[which(df.tmp$ID==i & df.tmp$Time2==j)] = nrow(tmp2)
     
     tmp2 = data.naive %>% 
@@ -110,7 +110,7 @@ df.a = df.tmp.a %>%
 # this code insures we are only looking at the time points and number of observations
 # up until the jay's first attempt
 
-Attm.fit = coxme(Surv(Time1, Time2, Attm)~ observe + (1|Group), data=df.a)
+Attm.fit = coxme(Surv(Time1, Time2, Attm)~ observe + (1|ID), data=df.a)
 summary(Attm.fit)
 # p = 0.15 - No relationship between observing interactions and the latency to make an attempt
 cox.zph(Attm.fit) #proportional hazards assumption not violated
@@ -131,7 +131,7 @@ df.s = df.tmp.s %>%
 # this code insures we are only looking at the time points and number of observations
 # up until the jay's first success.
 
-succ.fit = coxme(Surv(Time1, Time2, success)~observe + (1|Group), data=df.s)
+succ.fit = coxme(Surv(Time1, Time2, success)~observe + (1|ID), data=df.s)
 summary(succ.fit)
 # p = 0.03 - a one-unit increase in observations of group members interacting increases 
 # the likelihood of naive jays solving by 82% 
@@ -143,20 +143,22 @@ confint(succ.fit)
 exp(confint(succ.fit))
 
 
-#### Mexican Jay social learning data, ignoring time-varying covariate ####
+#### Mexican Jay social learning data, ignoring time-varying nature of "Observe" covariate ####
 data.naive$deltaT = data.naive$Tot.end - data.naive$Tot.start
-Time = aggregate(deltaT ~ ID, data = data.naive, FUN = "sum")
-Observe = aggregate(observe ~ ID, data = data.naive, FUN = "sum")
-Attempt = aggregate(Attm ~ ID, data = data.naive, FUN = "sum")
-Solve = aggregate(success ~ ID, data = data.naive, FUN = "sum")
+Time = aggregate(deltaT ~ ID + Trial, data = data.naive, FUN = "sum")
+Observe = aggregate(observe ~ ID + Trial, data = data.naive, FUN = "sum")
+Attempt = aggregate(Attm ~ ID + Trial, data = data.naive, FUN = "sum")
+Solve = aggregate(success ~ ID + Trial, data = data.naive, FUN = "sum")
 
-SLsumData = data.frame("ID" = Time[1],
-                       "Time" = Time$deltaT, 
-                       "Observe" = Observe$observe, 
-                       "Attempt" = Attempt$Attm, 
-                       "Solve" = Solve$success)
-SLsumData$AttStatus = ifelse(SLsumData$Attempt > 0, 1, 0)
-SLsumData$SolvStatus = ifelse(SLsumData$Solve > 0, 1, 0)
+df_list <- list(Time, Observe, Attempt, Solve) 
+SLsumData = df_list %>% reduce(full_join, by=c('ID','Trial'))
+
+SLsumData$AttStatus = ifelse(SLsumData$Attm > 0, 1, 0)
+SLsumData$SolvStatus = ifelse(SLsumData$success > 0, 1, 0)
 
 ## Survival model for attempts with observe as a covariate.
+succ.fit2 = coxme(Surv(deltaT, SolvStatus)~observe + (1|ID), data=SLsumData)
+summary(succ.fit2)
 
+attm.fit2 = coxme(Surv(deltaT, AttStatus)~observe + (1|ID), data=SLsumData)
+summary(attm.fit2)

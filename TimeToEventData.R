@@ -54,12 +54,12 @@ SLraw = read.csv("MEJAsocLearnRaw.csv")
 
 
 library(tidyverse)
-data.naive = data19[which(data19$Experienced == "No"),] #remove Experienced jay data
+data.naive = SLraw[which(SLraw$Experienced == "No"),] #remove Experienced jay data
 data.naive = data.naive[-which(str_detect(data.naive$Behav, "scrounge")),] #remove scrounges
 
 tmp = data.naive %>% 
-  dplyr::select(observe, Attm, success, ID, Group, Tot.end) %>% 
-  arrange(Group, ID, Tot.end)
+  dplyr::select(Trial, observe, Attm, success, ID, Group, Tot.end) %>% 
+  arrange(Group, ID, Trial, Tot.end)
 
 ### create a dataframe with the time intervals between each event 
 #i.e., any time an event happens where a jay did something or saw something, 
@@ -141,3 +141,22 @@ cox.zph(succ.fit) #proportional hazards assumption not violated
 ## Calculate 95% confidence intervals for estimate and hazard ratio
 confint(succ.fit)
 exp(confint(succ.fit))
+
+
+#### Mexican Jay social learning data, ignoring time-varying covariate ####
+data.naive$deltaT = data.naive$Tot.end - data.naive$Tot.start
+Time = aggregate(deltaT ~ ID, data = data.naive, FUN = "sum")
+Observe = aggregate(observe ~ ID, data = data.naive, FUN = "sum")
+Attempt = aggregate(Attm ~ ID, data = data.naive, FUN = "sum")
+Solve = aggregate(success ~ ID, data = data.naive, FUN = "sum")
+
+SLsumData = data.frame("ID" = Time[1],
+                       "Time" = Time$deltaT, 
+                       "Observe" = Observe$observe, 
+                       "Attempt" = Attempt$Attm, 
+                       "Solve" = Solve$success)
+SLsumData$AttStatus = ifelse(SLsumData$Attempt > 0, 1, 0)
+SLsumData$SolvStatus = ifelse(SLsumData$Solve > 0, 1, 0)
+
+## Survival model for attempts with observe as a covariate.
+

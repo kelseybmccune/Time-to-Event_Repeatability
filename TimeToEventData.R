@@ -162,3 +162,25 @@ summary(succ.fit2)
 
 attm.fit2 = coxme(Surv(deltaT, AttStatus)~observe + (1|ID), data=SLsumData)
 summary(attm.fit2)
+
+
+##### Cricket time-to-emerge data ####
+crick = read.csv("CricketEmergence.csv")
+
+# data already includes a status column ("Emerge") and time
+emerg.fit = coxme(Surv(Latency.to.emerge, Emerge)~Sex + Mass + RMR + (1|Cricket), data=crick)
+summary(emerg.fit)
+cox.zph(emerg.fit) # RMR changes over time and so violates proportional hazard assumption
+
+plot.fit = survfit(Surv(Latency.to.emerge, Emerge)~Sex, data = crick)
+ggsurvplot(plot.fit, data = crick, fun = 'event', 
+                       risk.table = F, pval = F, palette = c("black","#999999"), 
+                       ylab = "Proportion", size = 1.5, legend = c(0.7,0.2), 
+                       xlab = "Latency to emerge from shelter (sec)", font.tickslab=c(10,"plain","black"), 
+                       font.x=c(14,"plain","black"), 
+                       font.y=c(14,"plain","black"), font.legend = c(12, "plain","black"), size=0.5, 
+                       break.y.by = 0.25, censor=T)
+
+
+
+

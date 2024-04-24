@@ -184,4 +184,17 @@ ggsurvplot(plot.fit, data = crick, fun = 'event',
 
 
 
+#### Christmas tree worm time-to-emerge data ####
+ctw = read.csv("CTWemergence.csv")
+# "HT" variable indicates hiding time, or the latency to emerge; "Whorls" is a visual indicator of age
+# 30 worms received 4 trials per day, across 4 days for a total of 16 trials. 
 
+# 2 individuals have NA values, but it is not explained why. I'll assume these are censored (the worm didn't emerge in the trial time)
+ctw$event = ifelse(is.na(ctw$HT),0,1)
+
+ctw.emerg = coxme(Surv(HT, event)~Whorls + (1|Worm_ID), data=ctw)
+summary(ctw.emerg)
+
+ctw$olre = factor(1:475)
+ctw.emerg.olre = coxme(Surv(HT, event)~Whorls + (1|Worm_ID) + (1|olre), data=ctw)
+summary(ctw.emerg.olre)

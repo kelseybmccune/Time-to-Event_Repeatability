@@ -166,6 +166,7 @@ summary(attm.fit2)
 
 ##### Cricket time-to-emerge data ####
 crick = read.csv("CricketEmergence.csv")
+crick$Cricket = crick$Cricket %>% str_replace(".*-", "")
 
 # data already includes a status column ("Emerge") and time
 emerg.fit = coxme(Surv(Latency.to.emerge, Emerge)~Sex + Mass + RMR + (1|Cricket), data=crick)

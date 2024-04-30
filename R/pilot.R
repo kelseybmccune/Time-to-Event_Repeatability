@@ -33,10 +33,15 @@ str(dat)
 coxme0 <-  coxme(Surv(LatencyFirstLand, event) ~ Condition  + (1|BirdID), data=dat)
 summary(coxme0)
 
-mu<- (mean(predict(coxme0, type = "risk")) + 0.5*0.7711779)
 
-mu*(exp(0.7711779) - 1)/(mu*(exp(0.7711779) - 1) + 1)
-0.7711779/(0.7711779 + trigamma(mu))
+var <- VarCorr(coxme0)$BirdID[[1]]
+
+mu<- (0.5*var)
+
+mu*(exp(var) - 1)/(mu*(exp(var) - 1) + 1)
+var/(var + trigamma(mu))
+var/(var + log(1/mu + 1))
+var/(var + 1/mu)
 
 model <- lmer(pred ~ 1 + (1|BirdID), data = dat)
 summary(model)
@@ -70,9 +75,15 @@ jsolv = read.csv(here("data", "jaySolveData.csv"))
 solv.su = coxme(Surv(Adjusted, Solve)~Treatment + (1|ID), data=jsolv)
 summary(solv.su)
 
-mu <- mean(predict(solv.su , type = "lp") + 0.5* VarCorr(solv.su)[[1]])
+var <- VarCorr(solv.su)$ID[[1]]
 
-VarCorr(solv.su)[[1]]/(VarCorr(solv.su)[[1]] + trigamma(mu))
+mu <- mean(0.5* var)
+
+mu*(exp(var) - 1)/(mu*(exp(var) - 1) + 1)
+var/(var + trigamma(mu))
+var/(var + log(1/mu + 1))
+var/(var + 1/mu)
+
 #########
 
 ctw <- read.csv(here("data","CTWemergence.csv"))
@@ -87,9 +98,15 @@ summary(ctw.emerg)
 
 predict(ctw.emerg , type = "risk")
 
-mu <- exp(mean(predict(ctw.emerg , type = "lp")) + 0.5*1.030431)
+var <- VarCorr(ctw.emerg)$Worm_ID[[1]]
 
-1.030431/(1.030431 + trigamma(mu))
+
+mu <- exp(mean(predict(ctw.emerg , type = "lp")) + 0.5*var)
+
+mu*(exp(var) - 1)/(mu*(exp(var) - 1) + 1)
+var/(var + trigamma(mu))
+var/(var + log(1/mu + 1))
+var/(var + 1/mu)
 
 # criket
 
@@ -101,11 +118,18 @@ crick$Cricket = crick$Cricket %>% str_replace(".*-", "")
 emerg.fit = coxme(Surv(Latency.to.emerge, Emerge)~ Sex + Mass + RMR + (1|Cricket), data=crick)
 summary(emerg.fit)
 
-s2 <- VarCorr(emerg.fit)[[1]]
+var <- VarCorr(emerg.fit)[[1]]
 
-mu <- exp(mean(predict(emerg.fit , type = "lp")) + 0.5*s2)
+mu <- exp(mean(predict(emerg.fit , type = "lp")) + 0.5*var)
 
-s2/(s2 + trigamma(mu))
+mu*(exp(var) - 1)/(mu*(exp(var) - 1) + 1)
+var/(var + trigamma(mu))
+var/(var + log(1/mu + 1))
+var/(var + 1/mu)
+
+
+##. 
+
 
 ########
 #more tests 

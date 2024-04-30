@@ -182,6 +182,9 @@ ggsurvplot(plot.fit, data = crick, fun = 'event',
                        font.y=c(14,"plain","black"), font.legend = c(12, "plain","black"), size=0.5, 
                        break.y.by = 0.25, censor=T)
 
+# define intervals in data using survSplit function for PWE and Discrete time survival models
+crick.int = survSplit(Surv(Latency.to.emerge,Emerge) ~ Sex + Mass + RMR + Cricket, data = crick, 
+                      cut = crick$Latency.to.emerge, start = "tstart",end = "tstop")
 
 
 #### Christmas tree worm time-to-emerge data ####

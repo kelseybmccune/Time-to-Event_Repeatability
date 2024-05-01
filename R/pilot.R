@@ -1,5 +1,11 @@
 # pilot
 
+# some thoughts
+
+# Base rate can be obtained by Poisson expansion and get a rate of event aross all the data
+# Variance from comxe can be used to get S2b 
+
+
 #options(repos = c(CRAN = "https://cloud.r-project.org"))
 #utils::install.packages("Matrix")
 #utils::install.packages("lme4")
@@ -14,6 +20,7 @@ library(lmerTest)
 library(tidyverse)
 library(Matrix)
 library(eha)
+library(phmm)
 #library(survminer)
 
 # data
@@ -32,7 +39,24 @@ str(dat)
 
 coxme0 <-  coxme(Surv(LatencyFirstLand, event) ~ Condition  + (1|BirdID), data=dat)
 summary(coxme0)
+var <- VarCorr(coxme0)$BirdID[[1]]
+fr.lognormal(k,s,var,what = "tau")
 
+dat$BirdID <- as.numeric(as.factor(dat$BirdID))
+mod <- parfm(Surv(LatencyFirstLand, event) ~ Condition, data=dat, cluster="BirdID", frailty = "gamma", method = "BFGS")
+mod
+0.532/(0.532 + 2)
+
+dat$BirdID <- as.numeric(as.factor(dat$BirdID))
+fit.phmm <- phmm(Surv(LatencyFirstLand, event) ~ Condition + (1|BirdID), dat,Gbs = 100, Gbsvar = 1000, VARSTART = 1,
+                 NINIT = 10, MAXSTEP = 100, CONVERG=90)
+summary(fit.phmm)
+
+ppd <- as.data.frame(as.matrix(pseudoPoisPHMM(fit.phmm)))
+
+mu2 <- mean(ppd$m)
+
+#basehaz(coxme0)
 
 var <- VarCorr(coxme0)$BirdID[[1]]
 
@@ -43,18 +67,25 @@ var/(var + trigamma(mu))
 var/(var + log(1/mu + 1))
 var/(var + 1/mu)
 
-model <- lmer(pred ~ 1 + (1|BirdID), data = dat)
-summary(model)
+mu2*(exp(var) - 1)/(mu2*(exp(var) - 1) + 1)
+var/(var + trigamma(mu2))
+var/(var + log(1/mu2 + 1))
+var/(var + 1/mu2)
+
+#model <- lmer(pred ~ 1 + (1|BirdID), data = dat)
+#summary(model)
 
 
 coxme1 <- coxme(Surv(LatencyFirstLand, event)~  (1|BirdID) , data=dat)
 summary(coxme1)
 
+
+
 predict(coxme1, type = "risk")
 
 
-pois0 <- glmer(round(LatencyFirstLand) ~ Condition  + (1|BirdID) + (1|olre), data = dat, family = "poisson")
-summary(pois0)
+#pois0 <- glmer(round(LatencyFirstLand) ~ Condition  + (1|BirdID) + (1|olre), data = dat, family = "poisson")
+#summary(pois0)
 
 #pois1 <- glmer(round(LatencyFirstLand) ~ 1  + (1|BirdID) + (1|olre), data = dat, family = "poisson")
 #summary(pois1)
@@ -75,14 +106,44 @@ jsolv = read.csv(here("data", "jaySolveData.csv"))
 solv.su = coxme(Surv(Adjusted, Solve)~Treatment + (1|ID), data=jsolv)
 summary(solv.su)
 
+
+jsolv$ID <- as.numeric(as.factor(jsolv$ID))
+#mod <- parfm(Surv(Adjusted, Solve) ~ Treatment, data=jsolv, cluster="ID", frailty = "lognormal", method="BFGS")
+#mod
+
+var <- VarCorr(solv.su)$ID[[1]]
+fr.lognormal(k,s,var,what = "tau")
+
+jsolv$ID <- as.numeric(as.factor(jsolv$ID))
+fit.phmm <- phmm(Surv(Adjusted, Solve) ~ Treatment + (1|ID), jsolv,
+                 Gbs = 100, Gbsvar = 1000, VARSTART = 1,
+                 NINIT = 10, MAXSTEP = 100, CONVERG=90)
+summary(fit.phmm)
+
+ppd <- as.data.frame(as.matrix(pseudoPoisPHMM(fit.phmm)))
+
+ppd$t <- as.factor(ppd$time) 
+fit2 <- glmer(m~-1+t+z1+(1|cluster)+offset(log(N)), 
+              data=ppd, family=poisson)
+summary(fit2)
+
+
+mean(ppd$m)
+
 var <- VarCorr(solv.su)$ID[[1]]
 
 mu <- mean(0.5* var)
+mu2 <- mean(ppd$m)
 
-mu*(exp(var) - 1)/(mu*(exp(var) - 1) + 1)
-var/(var + trigamma(mu))
-var/(var + log(1/mu + 1))
-var/(var + 1/mu)
+# mu*(exp(var) - 1)/(mu*(exp(var) - 1) + 1)
+# var/(var + trigamma(mu))
+# var/(var + log(1/mu + 1))
+# var/(var + 1/mu)
+fr.lognormal(k,s,var,what = "tau")
+mu2*(exp(var) - 1)/(mu2*(exp(var) - 1) + 1)
+#var/(var + trigamma(mu2))
+var/(var + log(1/mu2 + 1))
+#var/(var + 1/mu2)
 
 #########
 
@@ -95,6 +156,21 @@ ctw$event <- ifelse(is.na(ctw$HT),0,1)
 
 ctw.emerg <- coxme(Surv(HT, event)~Whorls + (1|Worm_ID), data=ctw)
 summary(ctw.emerg)
+var <- VarCorr(ctw.emerg)$Worm_ID[[1]]
+fr.lognormal(k,s,var,what = "tau")
+
+ctw$Worm_ID <- as.numeric(as.factor(ctw$Worm_ID))
+#mod <- parfm(Surv(HT, event) ~ Whorls, data=ctw, cluster="Worm_ID", frailty = "gamma")
+#mod
+
+
+ctw$Worm_ID <- as.numeric(as.factor(ctw$Worm_ID))
+fit.phmm <- phmm(Surv(HT, event) ~ Whorls + (1|Worm_ID), ctw,
+                 Gbs = 100, Gbsvar = 1000, VARSTART = 1,
+                 NINIT = 10, MAXSTEP = 100, CONVERG=90)
+summary(fit.phmm)
+
+mu2 <- mean(ppd$m)
 
 predict(ctw.emerg , type = "risk")
 
@@ -107,6 +183,12 @@ mu*(exp(var) - 1)/(mu*(exp(var) - 1) + 1)
 var/(var + trigamma(mu))
 var/(var + log(1/mu + 1))
 var/(var + 1/mu)
+
+mu2*(exp(var) - 1)/(mu2*(exp(var) - 1) + 1)
+var/(var + trigamma(mu2))
+var/(var + log(1/mu2 + 1))
+fr.lognormal(k,s,var,what = "tau")
+var/(var + 1/mu2)
 
 # criket
 

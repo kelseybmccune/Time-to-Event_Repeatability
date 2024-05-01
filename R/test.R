@@ -12,6 +12,50 @@ library(lmerTest)
 library(tidyverse)
 library(Matrix)
 library(eha)
+library(parfm)
+
+g <- function(w, k, s, sigma2) {
+  -k * w + exp(w) * s + w ^ 2 /  (2 * sigma2)
+}
+
+g1 <- function(w, k, s, sigma2) {
+  -k + exp(w) * s + w / sigma2
+}
+
+g2 <- function(w, k, s, sigma2) {
+  exp(w) * s + 1 / sigma2    
+} 
+
+Lapl <- Vectorize(function(s, k, sigma2) {
+  # Find wTilde = max(g(w)) so that g'(wTilde; k, s, theta) = 0
+  WARN <- getOption("warn")
+  options(warn = -1)
+  wTilde <- optimize(f = g, c(-1e10, 1e10), maximum = FALSE,
+                     k = k, s = s, sigma2 = sigma2)$minimum
+  options(warn = WARN)
+  
+  # Approximate the integral via Laplacian method
+  res <- (-1) ^ k * 
+    exp(-g(w = wTilde, k = k, s = s, sigma2 = sigma2)) /
+    sqrt(sigma2 * g2(w = wTilde, k = k, s = s, sigma2 = sigma2))
+  return(res)
+}, 's')
+
+intTau <- Vectorize(function(x, intTau.sigma2=sigma2) {
+  res <- x * 
+    Lapl(s = x, k = 0, sigma2 = intTau.sigma2) *
+    Lapl(s = x, k = 2, sigma2 = intTau.sigma2)
+  return(res)
+}, "x")
+
+
+tauRes <- function(sigma2 = sigma2) {
+  4 * integrate(
+  f = intTau, lower = 0, upper = Inf, 
+  intTau.sigma2 = sigma2)$value - 1
+return(tauRes)
+}
+
 ## Loading required package:  survival
 ## Loading required package:  lattice
 ## Loading required package:  Matrix
@@ -36,13 +80,41 @@ dat$cluster <- clusters
 dat$time <- time 
 dat$event <- event
 
-fit0 <- coxph(Surv(time, event) ~ Z1 + Z2 + frailty(cluster), dat, 
-              method="breslow", x=TRUE, y=TRUE)
+fit0 <- coxph(Surv(time, event) ~ Z1 + Z2 + frailty(cluster, distribution="gaussian"), dat)
 summary(fit0)
+
+fit01 <- coxph(Surv(time, event) ~ Z1 + Z2 + frailty(cluster, distribution="gamma"), dat)
+summary(fit01)
+
+0.1257205/(0.1257205 + 2)
+
+mod <- parfm(Surv(time, event) ~ Z1 + Z2, data=dat, cluster="cluster", frailty = "gamma")
+mod
+
+mod["theta", "ESTIMATE"]
+#tau(mod)
+mod1 <- parfm(Surv(time, event) ~ Z1 + Z2, data=dat, cluster="cluster", frailty = "lognormal")
+mod1
+#fit0e <- coxph(Surv(time*1000, event) ~ Z1 + Z2 + frailty(cluster, distribution="gaussian"), dat)
+#summary(fit0e)
+
+
+
+predict(fit0, type = "lp")
+
+bhest <- basehaz(fit0)
+haz <- exp(diff(bhest[, 1])*diff(bhest[, 2]))
+
+
+fit0b <- coxph(Surv(time, event) ~ Z1 + Z2 + frailty(cluster, distribution="gamma"), dat, 
+              method="breslow", x=TRUE, y=TRUE)
+summary(fit0b)
 
 fit1 <- coxme(Surv(time, event) ~ Z1 + Z2 + (1|cluster), dat)
 summary(fit1)
-var(ranef(fit1)$cluster)
+
+fr.lognormal(k,s,0.2384844,what = "tau")
+#var(ranef(fit1)$cluster)
 
 
 var <- VarCorr(fit1)$cluster[[1]]
@@ -86,15 +158,28 @@ ppd <- as.data.frame(as.matrix(pseudoPoisPHMM(fit.phmm)))
 
 ppd$t <- as.factor(ppd$time) 
 fit2 <- glmer(m~-1+t+z1+z2+(1|cluster)+offset(log(N)), 
-                  data=ppd, family=poisson, nAGQ=0)
-
+                  data=ppd, family=poisson)
 summary(fit2)
 var(pull(ranef(fit2)$cluster))
 
+fit3 <- glmer(m~-1+t+z1+z2+(1|cluster)+offset(log(N)), 
+              data=ppd, family=binomial(link="cloglog"))
+
+summary(fit3)
+var(pull(ranef(fit3)$cluster))
+
 
 var <- VarCorr(fit2)$cluster[1,1]
-mu <- exp(mean(predict(fit2)) + 0.5*VarCorr(fit2)$cluster[1,1])
+mu <- exp(0.5*var)
+mu2 <- mean(ppd$m)
 
 var/(var + trigamma(mu))
+var/(var + log(1/mu + 1))
 mu*(exp(var) - 1)/(mu*(exp(var) - 1) + 1)
 
+
+fr.lognormal(k,s,0.2384844,what = "tau")
+#var/(var + pi^2/6)
+#var/(var + trigamma(mu2))
+var/(var + log(1/mu2 + 1))
+mu2*(exp(var) - 1)/(mu2*(exp(var) - 1) + 1)

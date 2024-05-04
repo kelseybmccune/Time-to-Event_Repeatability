@@ -1,5 +1,8 @@
 # test
 
+# non-parmateric boostrapping with assigning clusters without replcements
+
+
 remotes::install_github("mcdonohue/phmm")
 
 
@@ -13,6 +16,8 @@ library(tidyverse)
 library(Matrix)
 library(eha)
 library(parfm)
+#library(glmmTMB)
+
 
 g <- function(w, k, s, sigma2) {
   -k * w + exp(w) * s + w ^ 2 /  (2 * sigma2)
@@ -48,12 +53,41 @@ intTau <- Vectorize(function(x, intTau.sigma2=sigma2) {
   return(res)
 }, "x")
 
-
-tauRes <- function(sigma2 = sigma2) {
-  4 * integrate(
-  f = intTau, lower = 0, upper = Inf, 
-  intTau.sigma2 = sigma2)$value - 1
-return(tauRes)
+fr.lognormal <- function(k,
+                         s,
+                         sigma2,
+                         what = "logLT") {
+    # if (!(is.numeric(sigma2) && (sigma2 > 0)))
+        # stop("The parameter sigma2 is not a positive value.")
+    
+    if (what == "logLT") {
+        # if (!(is.numeric(s) && (s > 0)))
+        #     stop("The parameter s is not positive.")
+        # Find wTilde = max(g(w)) so that g'(wTilde; k, s, theta) = 0
+        WARN <- getOption("warn")
+        options(warn = -1)
+        wTilde <- nlm(f = g, p = 0, k = k, s = s, sigma2 = sigma2)$estimate
+        options(warn = WARN)
+        
+        # Approximate the integral via Laplacian method
+        res <- -g(w = wTilde, k = k, s = s, sigma2 = sigma2) -
+            log(sigma2 * g2(w = wTilde, k = k, s = s, sigma2 = sigma2)
+            ) / 2
+        return(res)
+    }
+    else if (what == "tau") {
+        intTau <- Vectorize(function(x, intTau.sigma2=sigma2) {
+            res <- x * 
+                Lapl(s = x, k = 0, sigma2 = intTau.sigma2) *
+                Lapl(s = x, k = 2, sigma2 = intTau.sigma2)
+            return(res)
+        }, "x")
+        
+        tauRes <- 4 * integrate(
+            f = intTau, lower = 0, upper = Inf, 
+            intTau.sigma2 = sigma2)$value - 1
+        return(tauRes)
+    }
 }
 
 ## Loading required package:  survival
@@ -162,7 +196,7 @@ fit2 <- glmer(m~-1+t+z1+z2+(1|cluster)+offset(log(N)),
 summary(fit2)
 var(pull(ranef(fit2)$cluster))
 
-fit3 <- glmer(m~-1+t+z1+z2+(1|cluster)+offset(log(N)), 
+fit3 <- glmer(m~-1+t+z1+z2+(1|cluster), 
               data=ppd, family=binomial(link="cloglog"))
 
 summary(fit3)
@@ -183,3 +217,127 @@ fr.lognormal(k,s,0.2384844,what = "tau")
 #var/(var + trigamma(mu2))
 var/(var + log(1/mu2 + 1))
 mu2*(exp(var) - 1)/(mu2*(exp(var) - 1) + 1)
+
+##################
+
+set.seed(777) # for reproducibility
+
+# Number of observations
+n <- 1000
+
+# Generate some covariates
+#age <- rnorm(n, mean = 50, sd = 10)
+sex <- rbinom(n, size = 1, prob = 0.5)
+
+# Generate cluster variable (e.g., 10 clusters)
+cluster <- sample(1:10, n, replace = TRUE)
+
+# Generate frailty term at the cluster level
+frailty <- rnorm(max(cluster), sd =1)
+frailty <- frailty[cluster]
+
+# True parameter values
+beta <- 2
+
+# Weibull scale and shape parameters
+lambda <- 0.5
+k <- 5
+
+# Generate survival times with frailty term
+time <- (-log(runif(n))/lambda)^(1/k) * exp((sex*beta + frailty)/k)
+
+# Generate censoring times
+cens <- rexp(n, rate = 0.01)
+
+# Observed survival times are the minimum of the true survival time and the censoring time
+survtime <- pmin(time, cens)
+
+# Event indicator is 1 if the event happened (time <= cens), 0 otherwise
+event <- as.numeric(time <= cens)
+
+# Create a data frame
+dat <- data.frame(sex = sex, cluster = cluster, time = survtime, event = event)
+
+# Look at the first few rows of the data
+head(dat)
+
+# Fit a Cox proportional hazards model with a frailty term
+coxme_model <- coxme(Surv(time*100, event) ~ sex + (1|cluster), data = dat)
+
+# Print the summary of the model
+summary(coxme_model)
+var <- VarCorr(coxme_model)$cluster[[1]]
+var
+
+# fit01 <- coxph(Surv(time, event) ~ sex + frailty(cluster, distribution="gamma"), dat)
+# summary(fit01)
+
+#var2 <- fit01$history$`frailty(cluster, distribution = "gamma")`$theta
+
+#######
+###########
+# Ensure that 'time' is an integer
+#dat$time <- as.integer(dat$time)
+
+# # Explode the data
+# exploded_dat <- dat %>%
+#   uncount(time, .remove = FALSE)
+#
+# # Create an event variable
+# exploded_dat <- exploded_dat %>%
+#   group_by(cluster, event) %>%
+#   mutate(event = if_else(row_number() == max(row_number()), event, 0)) %>%
+#   ungroup()
+#
+# # Create a time interval variable
+# exploded_dat$time_interval <- cut(exploded_dat$time, breaks = seq(0, max(exploded_dat$time), by = 1))
+dat$olre <- 1:dim(dat)[1]
+#
+exploded_dat <- survSplit(Surv(time, event) ~ sex + cluster, data = dat,
+                    cut = (1:3)*(max(dat$time)/3), start = "tstart",end = "tstop",  zero=0, id = "olre")
+
+exploded_dat$time <- dat$time[exploded_dat$olre]
+
+exploded_dat$os_time <- exploded_dat$tstop - exploded_dat$tstart
+
+exploded_dat$t <- as.factor(exploded_dat$tstart)
+
+#fit2 <- glmer(event~ -1 + t + sex  + (1|cluster) + offset(log(os_time)), 
+#              data=exploded_dat, family = poisson)
+fit2b <-glmmTMB(event~ -1 + t + sex  + (1|cluster) + offset(log(os_time)), 
+                data=exploded_dat, family = poisson)
+#summary(fit2b)
+
+fit3 <- glmer(event~-1 + t + sex + (1|cluster), 
+              data=exploded_dat, family=binomial(link="cloglog"))
+#VarCorr(fit2)$cluster[1,1]
+VarCorr(fit2b)$cond$cluster[1,1]
+VarCorr(fit3)$cluster[1,1]
+var
+fixef(fit2b)$cond[4]
+fixef(fit3)["sex"]
+fixef(coxme_model)
+
+# Fit a Poisson GLMM
+
+mu2 <- exp(mean(predict(coxme_model)))
+#mu3 <- mean(extended_dat$event)
+
+var <- VarCorr(coxme_model)$cluster[[1]]
+mu3 <- exp(var/2)
+
+# Print the summary of the 
+fr.lognormal(k,s,var,what = "tau")
+var/(var + pi^2/6)
+
+
+var/(var + trigamma(mu2))
+var/(var + log(1/mu2 + 1))
+var/(var + 1/mu2)
+mu2*(exp(var) - 1)/(mu2*(exp(var) - 1) + 1)
+var/(var + log(1/mu3 + 1))
+
+mu2
+var
+
+

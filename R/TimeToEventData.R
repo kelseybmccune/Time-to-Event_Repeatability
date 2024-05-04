@@ -56,18 +56,11 @@ summary(solv.po.olre)
 # identical traits, but that shouldn't matter.  
 
 ## Time to first attempt model first
-write.csv(df.a, "MEJAintervalAttempts.csv")
 df.a = read.csv("MEJAintervalAttempts.csv")
 
 Attm.fit = coxme(Surv(Time1, Time2, Attm)~ observe + (1|ID), data=df.a)
 summary(Attm.fit)
-# p = 0.15 - No relationship between observing interactions and the latency to make an attempt
-cox.zph(Attm.fit) #proportional hazards assumption not violated
-
-## Calculate 95% confidence intervals for coefficient and hazard ratio
-confint(Attm.fit)
-exp(confint(Attm.fit))
-
+#random effect variance = 0.0004
 
 # What if the time scale is in minutes instead of seconds?
 df.a$newTime1 = df.a$Time1/60
@@ -75,6 +68,7 @@ df.a$newTime2 = df.a$Time2/60
 
 Attm.fit2 = coxme(Surv(newTime1, newTime2, Attm)~ observe + (1|ID), data=df.a)
 summary(Attm.fit2)
+#random effect and fixed effect estimates are the same
 
 
 ## Time to first solve model
@@ -82,33 +76,39 @@ df.s = read.csv("timeintervalMEJA.csv")
 
 succ.fit = coxme(Surv(Time1, Time2, success)~observe + (1|ID), data=df.s)
 summary(succ.fit)
-# p = 0.03 - a one-unit increase in observations of group members interacting increases 
-# the likelihood of naive jays solving by 82% 
-# compared to a jay that never observes interactions
-cox.zph(succ.fit) #proportional hazards assumption not violated
-
-## Calculate 95% confidence intervals for estimate and hazard ratio
-confint(succ.fit)
-exp(confint(succ.fit))
+#random effect variance = 1.277
 
 # If time is minutes instead of seconds
 df.s$newTime1 = df.s$Time1/60
 df.s$newTime2 = df.s$Time2/60
 succ.fit2 = coxme(Surv(newTime1, newTime2, success)~observe + (1|ID), data=df.s)
 summary(succ.fit2)
+#random effect and fixed effect estimates are the same
 
 
+## PWE model
+df.s$tar = df.s$Time2 - df.s$Time1
+interval = data.frame(unique(df.s$Time2))
+interval$interval = factor(1:133)
+colnames(interval)[1] = "Time2"
+jay.int = merge(df.s, interval, by = "Time2", all = T)
+meja.pwe.fit = glmer(success ~ observe + interval + (1|ID), data=jay.int,
+                family = poisson, offset = log(tar),nAGQ=7,
+                control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+#started 6:17pm; ended 4:00pm
+summary(meja.pwe.fit)
+#random effect variance is essentially zero, but model not converging.
 
 
 #### Mexican Jay social learning data, ignoring time-varying nature of "Observe" covariate ####
 data.naive$deltaT = data.naive$Tot.end - data.naive$Tot.start
-Time = aggregate(deltaT ~ ID + Trial, data = data.naive, FUN = "sum")
-Observe = aggregate(observe ~ ID + Trial, data = data.naive, FUN = "sum")
-Attempt = aggregate(Attm ~ ID + Trial, data = data.naive, FUN = "sum")
-Solve = aggregate(success ~ ID + Trial, data = data.naive, FUN = "sum")
+Time = aggregate(deltaT ~ ID + Date, data = data.naive, FUN = "sum")
+Observe = aggregate(observe ~ ID + Date, data = data.naive, FUN = "sum")
+Attempt = aggregate(Attm ~ ID + Date, data = data.naive, FUN = "sum")
+Solve = aggregate(success ~ ID + Date, data = data.naive, FUN = "sum")
 
 df_list <- list(Time, Observe, Attempt, Solve) 
-SLsumData = df_list %>% reduce(full_join, by=c('ID','Trial'))
+SLsumData = df_list %>% reduce(full_join, by=c('ID','Date'))
 
 SLsumData$AttStatus = ifelse(SLsumData$Attm > 0, 1, 0)
 SLsumData$SolvStatus = ifelse(SLsumData$success > 0, 1, 0)
@@ -116,9 +116,10 @@ SLsumData$SolvStatus = ifelse(SLsumData$success > 0, 1, 0)
 ## Survival model for attempts with observe as a covariate.
 succ.fit2 = coxme(Surv(deltaT, SolvStatus)~observe + (1|ID), data=SLsumData)
 summary(succ.fit2)
-
-attm.fit2 = coxme(Surv(deltaT, AttStatus)~observe + (1|ID), data=SLsumData)
-summary(attm.fit2)
+var(ranef(succ.fit2)$ID)
+SLsumData$newT = SLsumData$deltaT/60
+succ.fit3 = coxme(Surv(newT, SolvStatus)~observe + (1|ID), data=SLsumData)
+summary(succ.fit3) #same results
 
 
 ##### Cricket time-to-emerge data ####
@@ -134,15 +135,6 @@ cox.zph(emerg.fit) # RMR changes over time and so violates proportional hazard a
 cph = coxph(Surv(Latency.to.emerge, Emerge)~Sex + Mass + RMR + frailty(Cricket, distribution = "gaussian"), data=crick)
 summary(cph)
 
-
-plot.fit = survfit(Surv(Latency.to.emerge, Emerge)~Sex, data = crick)
-ggsurvplot(plot.fit, data = crick, fun = 'event', 
-                       risk.table = F, pval = F, palette = c("black","#999999"), 
-                       ylab = "Proportion", size = 1.5, legend = c(0.7,0.2), 
-                       xlab = "Latency to emerge from shelter (sec)", font.tickslab=c(10,"plain","black"), 
-                       font.x=c(14,"plain","black"), 
-                       font.y=c(14,"plain","black"), font.legend = c(12, "plain","black"), size=0.5, 
-                       break.y.by = 0.25, censor=T)
 
 # define intervals in data using survSplit function for PWE and Discrete time survival models
 # I chose unequal interval sizes so that there was one event per interval
@@ -192,6 +184,7 @@ ctw.emerg = coxme(Surv(HT, event)~Whorls + (1|Worm_ID), data=ctw2)
 summary(ctw.emerg)
 #random effect variance = 1.671
 var(ranef(ctw.emerg)$Worm_ID) # 1.42
+var(random.effects(ctw.emerg)$Worm_ID) #1.42
 
 ctw2$olre = factor(1:120)
 ctw.emerg.olre = coxme(Surv(HT, event)~Whorls + (1|Worm_ID) + (1|olre), data=ctw2)
@@ -230,6 +223,6 @@ ctw.dtsm.fit = glmer(event ~ Whorls + interval + (1|Worm_ID), data=ctw.int,
                  family = binomial(link="cloglog"), nAGQ=7)
 #started 3:38pm; ended 
 summary(ctw.dtsm.fit)
-#random effect variance = 1.67 ... same as cox model
+#random effect variance = 1.67 ... same as cox model, but warnings it failed to converge
 
 

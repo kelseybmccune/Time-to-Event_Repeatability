@@ -203,6 +203,8 @@ summary(ctw.cox.int)
 #random effect variance = 1.671 ... same as cox model with continuous data
 var(ranef(ctw.cox.int)$Worm_ID) # 1.42
 
+ctw.coxph.int = coxph(Surv(tstart,tstop,event) ~ Whorls + frailty(Worm_ID), data = ctw.int)
+summary(ctw.coxph.int) # random effect variance = 1.06
 
 ## PWE model
 # for the piecewise exponential model, we need a measure of the time-at-risk for the offset.
@@ -225,4 +227,11 @@ ctw.dtsm.fit = glmer(event ~ Whorls + interval + (1|Worm_ID), data=ctw.int,
 summary(ctw.dtsm.fit)
 #random effect variance = 1.67 ... same as cox model, but warnings it failed to converge
 
+
+#### Toutouwai caching repeatability ####
+
+ttw = read.csv("Vamos&Shaw_2024_data.csv")
+# ret_latency is the censored time-to-event variable. Only collected in the first year of the study.
+ttw2 = ttw[which(ttw$year == 2020),c(2,)]
+# distance is the variable for the distance the toutouwai went to cache. There are no censored data in this variable.
 

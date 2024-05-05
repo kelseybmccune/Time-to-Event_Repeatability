@@ -1,0 +1,2 @@
+load("/Users/kelseymccune/Documents/GitHub/Time-to-Event_Repeatability/data/AllCodPositions.rdata")
+load("/Users/kelseymccune/Documents/GitHub/Time-to-Event_Repeatability/data/telem.rdata")

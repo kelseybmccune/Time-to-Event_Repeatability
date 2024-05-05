@@ -149,7 +149,7 @@ summary(fit1)
 
 fr.lognormal(k,s,0.2384844,what = "tau")
 #var(ranef(fit1)$cluster)
-
+confint(fit1)
 
 var <- VarCorr(fit1)$cluster[[1]]
 mu <- exp(0.5*var)

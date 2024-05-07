@@ -51,7 +51,7 @@ survival_time <- rexp(n, hazard)
 # we could model this differently
 # censoring 0 or 15??
 censoring_prop <- 0.15 # 15%
-censoring_time <- quantile(survival_times, 1 - censoring_prop)
+censoring_time <- quantile(survival_time, 1 - censoring_prop)
 
 
 event <- ifelse(survival_time <= censoring_time, 1, 0)

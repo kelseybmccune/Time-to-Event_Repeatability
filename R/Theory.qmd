@@ -1,8 +1,8 @@
 ---
 title: "Theory"
-format: docx 
+#format: docx 
 #format: html
-#format: pdf
+format: pdf
 editor: visual
 ---
 
@@ -20,7 +20,7 @@ $$
 \ln\left(\frac{\lambda_{i}(t)}{\lambda_0(t)}\right) = b_1 x_1 + b_2 x_2 + \ldots + b_m x_m, 
 $$ {#eq-cox2}
 
-for the right hand side to take a linear form, which is more familiar for many readers although it does not have the intercept (i.e., $b_0$). To fit such a model using, for example, R, one needs to provide the time-to-event data in the form of a `Surv` object (e.g., `Surv(time, event)` where `time` is time taken till an event or censoring and `event` is usually 0 or 1, indicating whether the event occurred or not). The Cox model can be fitted using the `coxph` in the `survival` package (Therneau et al. 2015).
+for the right hand side to take a linear form, which is more familiar for many readers although it does not have the intercept (i.e., $b_0$) and the residual term (i.e., $\varepsilon$). To fit such a model using, for example, R, one needs to provide the time-to-event data in the form of a `Surv` object (e.g., `Surv(time, event)` where `time` is time taken till an event or censoring and `event` is usually 0 or 1, indicating whether the event occurred or not). The Cox model can be fitted using the `coxph` in the `survival` package (Therneau et al. 2015).
 
 <!--- Therneau T. A package for survival analysis in S. R package version. 2015 Mar 31;2(7):2014. --->
 
@@ -83,13 +83,13 @@ where $\lambda_{ijk}(t)$ is the hazard rate at time $t$ for the *i*th subject fo
 
 Rather remarkably, $b_{sex}$ and $\sigma^2_{\alpha}$ are "the same" as in Equation 3 although the data structures used for two models are very different (i.e., time-to-event data vs. exploded data; Fig XXX). Using a simple simulation, we show the equivalence of $b_{sex}$ and $\sigma^2_{\alpha}$ between the Cox (frailty) model (fitted with `coxph` and `coxme`) and the binomial GLMM (fitted with `glmer`;see below). Note that the number of intervals do not affect these estimates from the binomial GLMM.
 
-Therefore, we can use variance components obtained from Cox models to estimate ICC under a binomial GLMM with the complementary log-log link where $\sigma^2_{\varepsilon}$ (or the distributional-specific variance; Equation 4) is $\pi^2/6$ on the latent scale. This means we can define ICC for Equation 3 and 6 as:
+Therefore, we can use variance components obtained from Cox models to estimate ICC under a binomial GLMM with the complementary log-log link where $\sigma^2_{\varepsilon}$ (or the distributional-specific variance; Equation 4) is $\pi^2/6$ on the latent scale. This means we can define ICC for Equation 3 and 6 as (Nakagawa et al. 2017):
 
 $$
 \text{ICC} = \frac{\sigma^2_{\alpha}}{\sigma^2_{\alpha} + \pi^2/6}.
 $$ {#eq-icc3}
 
-In the simulation below, we show the parametric version of ICC and the non-parametric version ($\text{ICC}_{\text{np}}$) are well correlated but not equivalent (analogous to the relationship between Pearson's *r* and Kendall's $\tau$. We prefer the use of ICC as in Equation 7 over $\text{ICC}_{\text{np}}$ because the parametric version is more comparable to other ICC estimates (on the latent/link scale) derived from GLMMs (e.g. Poisson and binomial data), which are now commonly used in ecology and evolution.
+In the simulation below, we show the parametric version of ICC and the non-parametric version ($\text{ICC}_{\text{np}}$) are well correlated but not equivalent (analogous to the relationship between Pearson's *r* and Kendall's $\tau$. We prefer the use of ICC as in Equation 7 over $\text{ICC}_{\text{np}}$ because the parametric version is more comparable to other ICC estimates (on the latent/link scale) derived from GLMMs (e.g. Poisson and binomial data), which are now commonly used in ecology and evolution (Nakagawa et al. 2017).
 
 Furthermore, the advantage of this approach is for us to add more than one random effect, which was eluded above. For example, imagine we have another cluster (a random effect), adding it to Equation 3 and then:
 

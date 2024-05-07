@@ -8,13 +8,13 @@ editor: visual
 
 ## Proportional-hazards models and intra-class correlation
 
-Cox proportional-hazards models (or Cox regression) estimate the hazard (rate) of an event occurring in relation to predictor variables with time-to-event data (i.e., time taken till the event or censoring; Cox 1972). The hazard is a rate (or risk) of which an event occurring at time $t$. The hazard rate is defined in a Cox model as:
+Cox proportional-hazards models (or Cox regression) estimate the hazard (rate) of an event occurring in relation to predictor variables with time-to-event data (i.e., time taken till the event or censoring; Cox 1972). The hazard is a rate (or risk) of an event occurring at time $t$. The hazard rate is defined in a Cox model as:
 
 $$
 \lambda_{i}(t) = \lambda_0(t) \exp(b_1 x_1 + b_2 x_2 + \ldots + b_m x_m),
 $$ {#eq-cox1}
 
-where $\lambda(t)$ is the hazard rate at time $t$ for the *i*th subject (individual), $\lambda_0(t)$ is the baseline hazard rate, $\beta_1, \beta_2, \ldots, \beta_m$ are the regression coefficients, and $x_1, x_2, \ldots, x_m$ are the predictor variables. Note $\lambda_0(t)$ take the place of the intercept as $\exp(\ln(\lambda_0(t)) + b_1 x_1 + \ldots_)$ or $\exp(b_0 + b_1 x_1 + \ldots_)$ where $\ln(\lambda_0(t)) = b0$ ('ln' is a natural logarithm). Equation 1 can be rearranged to:
+where $\lambda(t)$ is the hazard rate at time $t$ for the *i*th subject (individual), $\lambda_0(t)$ is the baseline hazard rate, $\beta_1, \beta_2, \ldots, \beta_m$ are the regression coefficients, and $x_1, x_2, \ldots, x_m$ are the predictor variables. Note $\lambda_0(t)$ takes the place of the intercept as $\exp(\ln(\lambda_0(t)) + b_1 x_1 + \ldots_)$ or $\exp(b_0 + b_1 x_1 + \ldots_)$ where $\ln(\lambda_0(t)) = b0$ ('ln' is a natural logarithm). Equation 1 can be rearranged to:
 
 $$
 \ln\left(\frac{\lambda_{i}(t)}{\lambda_0(t)}\right) = b_1 x_1 + b_2 x_2 + \ldots + b_m x_m, 
@@ -24,7 +24,7 @@ for the right hand side to take a linear form, which is more familiar for many r
 
 <!--- Therneau T. A package for survival analysis in S. R package version. 2015 Mar 31;2(7):2014. --->
 
-Now let us assume that we have a single predictor variable, sex, $x_{sex}$ for a time-to-event data set (e.g. a latency to solve a task), and we have a single random effect (or cluster) $\alpha$ (e.g. individuals or populations). The Cox proportional-hazards model can be extended to include a random effect (individual identify), which is often referred to as the 'frailty' term (Cox regressions with a single random effect is known as the frailty model):
+Now let us assume that we have a single predictor variable, sex, $x_{sex}$ for a time-to-event data set (e.g., a latency to solve a task), and we have a single random effect (or cluster) $\alpha$ (e.g., individuals or populations). The Cox proportional-hazards model can be extended to include a random effect (individual identity), which is often referred to as the 'frailty' term and Cox regression with a single random effect is known as the frailty model:
 
 $$
 \ln\left(\frac{\lambda_{ij}(t)}{\lambda_0(t)}\right) = b_{sex} x_{sex} + \alpha_{i}, 
@@ -34,21 +34,21 @@ $$
 \alpha_{i} \sim N(0, \sigma^2_{\alpha}),
 $$
 
-where $\lambda_{ij}(t)$ is the hazard rate at time $t$ for the *i*th individual for the *j*th occasion (observation). This model (frailty model) can be fitted using the `coxme` function in the  R package `coxme` (Therneau 2015) as well as `coxph`.
+where $\lambda_{ij}(t)$ is the hazard rate at time $t$ for the *i*th individual for the *j*th occasion (observation). This model (frailty model) can be fitted using the `coxme` function in the R package `coxme` (Therneau 2015) as well as `coxph`.
 
 <!--- Therneau, Terry M., and Maintainer Terry M. Therneau. "Package ‘coxme’." R package version 2.5 (2015). --->
 
-Now we have defined the Cox model so let us define repeatably or intra-class correlations (ICC) in its simplest form when the trait of interest (the response variable) is a Gaussian variable (i.e. having normally distributed residuals):
+Now we have defined the Cox model so let us define repeatably or intra-class correlations (ICC) in its simplest form when the trait of interest (the response variable) is a Gaussian variable (i.e., having normally distributed residuals):
 
 $$
 \text{ICC} = \frac{\sigma^2_{\alpha}}{\sigma^2_{\alpha} + \sigma^2_{\varepsilon}},
 $$ {#eq-icc1}
 
-where $\sigma^2_{\alpha}$ is the variance of the random effect (identity for a cluster: e.g. individuals so the between-cluster variance) and $\sigma^2_{\epsilon}$ is the variance of the residuals (or within-cluster variance; Nakagawa & Schielzeth 2010). The ICC can be interpreted as the proportion of the total variance that is due to the between-cluster variance. The ICC can be calculated for (generalized) linear mixed-effect models (LMMS or GLMMs). For example, the R pacakge, `rptR` can be used to calculate the ICC for a GLMM, via `lmer` and `glmer` function in the `lme4` package.
+where $\sigma^2_{\alpha}$ is the variance of the random effect (the between-cluster variance, where cluster could be individual identity) and $\sigma^2_{\epsilon}$ is the variance of the residuals (or within-cluster variance; Nakagawa & Schielzeth 2010). The ICC can be interpreted as the proportion of the total variance that is due to the between-cluster variance. The ICC can be calculated for (generalized) linear mixed-effect models (LMMS or GLMMs). For example, the R pacakge, `rptR` can be used to calculate the ICC for a GLMM, via `lmer` and `glmer` function in the `lme4` package.
 
-Nakagawa & Schielzeth (2010) suggest that for non-Guassian data (e.g. binomial or Poisson), the within-cluster variance can be determined by what distributional assumptions GLMM makes (e.g. binomial or Poisson). For example, to obtain ICC for binary GLMMs on the latest (link/transformed) scale, $\sigma^2_{\varepsilon}$ can be assumed to be $\pi^2/3$ (they call $\sigma^2_{\varepsilon}$ as the distributional specific variance; for more details, see Nakagawa & Schielzeth 2010. Nakagawa et al. 2017). However, Cox models make no distributional assumptions about the hazard rate (i.e., non-parametric; Equation 1 & 2) although frailty models (Equation 3) has a random effect of a Gaussian distribution (this is why, this model is known as semi-parametric. Therefore, we could not calculate the ICC for Cox models.
+Nakagawa & Schielzeth (2010) suggest that for non-Gaussian data (e.g. binomial or Poisson), the within-cluster variance can be determined by what distributional assumptions GLMM makes (e.g. binomial or Poisson). For example, to obtain ICC for binary GLMMs on the latent (link/transformed) scale, $\sigma^2_{\varepsilon}$ can be assumed to be $\pi^2/3$ (they call $\sigma^2_{\varepsilon}$ as the distributional specific variance; for more details, see Nakagawa & Schielzeth 2010. Nakagawa et al. 2017). However, Cox models make no distributional assumptions about the hazard rate (i.e., non-parametric; Equation 1 & 2). Although frailty models (Equation 3) have a random effect with a Gaussian distribution and so are referred to as semi-parametric. Therefore, using these current tools we cannot calculate the ICC for Cox models.
 
-Yet, in the statistical literature, a formula for parametric version of ICC ($\text{ICC}_{\text{np}}$) for the frailty model is known when we make the random effect is disbursed as a Gamma distribution on the exponential scale. If we denote the variance from a Gamma distribution as $\theta_{\alpha}$ under Equation 3, $\text{ICC}_{\text{np}}$ can be written as:
+Yet, in the statistical literature, a formula for the non-parametric version of ICC ($\text{ICC}_{\text{np}}$) for the frailty model is known when the random effect is disbursed as a Gamma distribution on the exponential scale. If we denote the variance from a Gamma distribution as $\theta_{\alpha}$ under Equation 3, $\text{ICC}_{\text{np}}$ can be written as:
 
 $$
 \text{ICC}_{\text{np}} = \frac{\theta_{\alpha}}{\theta_{\alpha} + 2},
@@ -56,34 +56,34 @@ $$ {#eq-icc2}
 
 $$
 \exp(\alpha_{i}) \sim G\left(\frac{1}{\theta_{\alpha}}, \frac{1}{\theta_{\alpha}} \right),
-$$ 
+$$
 
-where the first $1/\theta_{\alpha}$ and the second are $1/\theta_{\alpha}$, the shape and the rate parameter of the Gamma distribution, respectively (such parameterization results in the mean, $\text{E}(\exp(\alpha_{i})) = 1$ and variance, $\text{Var}(\exp(\alpha_{i})) = \theta_{\alpha}$).
+where the first $1/\theta_{\alpha}$ and the second $1/\theta_{\alpha}$, are the shape and the rate parameter of the Gamma distribution, respectively (such parameterization results in the mean, $\text{E}(\exp(\alpha_{i})) = 1$ and variance, $\text{Var}(\exp(\alpha_{i})) = \theta_{\alpha}$).
 
 The estimate, $\text{ICC}_{\text{np}}$ is Kendall's $\tau$ (the rank correlation or concordance for within-cluster observations) for the frailty model (Hougaard 2000). Unfortunately, there is no closed formula when assuming a Gaussian distribution for the random effect as in Equation 3. Yet, $\text{ICC}_{\text{np}}$ can be obtained numerically and we provide an R function based on the `tau` function from the R package, `parfm` (Munda et al. 2012). We note that and are unlikely to be the same but $\text{ICC}_{\text{np}}$ values, which we show in the simulation below.
 
 <!--- Hougaard, Philip, and Philip Hougaard. Analysis of multivariate survival data. Vol. 564. New York: Springer, 2000 --->
 
-An issue with the $\text{ICC}_{\text{np}}$ is that it is not a parametric version of ICC and more importantly, it is not clear whether this method can be extended where a Cox model has more than one random effect (at least, piratically speaking). Therefore, we need to use a trick to turn a time-to-event data for Cox models into a data set where we could fit a GLMM so that we can obtain parametric versions of ICCs.
+An issue with the $\text{ICC}_{\text{np}}$ is that it is not a parametric version of ICC and more importantly, it is not clear whether this method can be extended where a Cox model has more than one random effect (at least, piratically speaking). Therefore, we need to turn a time-to-event data set for Cox models into a data set where we could fit a GLMM so that we can obtain parametric versions of ICCs.
 
 ## Cox proportional-hazards models and generalized linear mixed models
 
-
+```{=html}
 <!--- Finkelstein, Dianne M. "A proportional hazards model for interval-censored failure time data." Biometrics (1986): 845-854.
 
 Hirsch, Katharina, Andreas Wienke, and Oliver Kuss. "Log-normal frailty models fitted as Poisson generalized linear mixed models." Computer methods and programs in biomedicine 137 (2016): 167-175.
 
 Suresh, Krithika, Cameron Severn, and Debashis Ghosh. "Survival prediction models: an introduction to discrete-time modeling." BMC medical research methodology 22.1 (2022): 207.--->
-
-In the statistical literature, it seems to be well known that the frailty model (Equation 3) can be fitted as a Poisson GLMM (known as, the piece-wise exponential model; e.g., Hirsh et al. 2016) or a binomial GLMM (the discrete-time model; Finkelstein 1986, Suresh et al. 2022; for an accessible non-technical account, see Austin 2017). Here, we show the discrete-time model, more specifically, the binomial GLMM with the complementary log-log (cloglog) link can be used to fit a comparable model as Equation 3 by "exploding" the time-to-even data set by defining arbitrary discrete time intervals (Fig XXX shows an example of such a exploded data set compared to the original). If we assume we have three (arbitrary discrete) time intervals (*t1*, *t2* & *t3*) This binomial GLMM (without the intercept) is defined as:
+```
+In the statistical literature, it seems to be well known that the frailty model (Equation 3) can be fitted as a Poisson GLMM (known as, the piece-wise exponential model; e.g., Hirsh et al. 2016) or a binomial GLMM (the discrete-time model; Finkelstein 1986, Suresh et al. 2022; for an accessible non-technical account, see Austin 2017). Here, we show the discrete-time model, more specifically, the binomial GLMM with the complementary log-log (cloglog) link can be used to fit a comparable model as Equation 3 by "exploding" the time-to-event data through defining arbitrary discrete time intervals (Fig XXX shows an example of such an exploded data set compared to the original). If we assume we have three (arbitrary discrete) time intervals (*t1*, *t2* & *t3*) This binomial GLMM (without the intercept) is defined as:
 
 $$
 \ln\left( \frac{-\ln(1-\lambda_{ijk}(t))}{-\ln(1-\lambda_{0k}(t))} \right) = b_{sex} x_{sex} + b_{t1} x_{t1} +  b_{t2} x_{t2} + b_{t3} x_{t3} + \alpha_{i}, 
 $$ {#eq-glmm1}
 
-where $\lambda_{ijk}(t)$ is the hazard rate at time $t$ for the *i*th subject for the *j*the occasions for the *k*th time interval ($k = t1, t2, t3$), $\lambda_{0k}(t)$ is the baseline hazard rate for $k$ is the time interval, $x_{t1}, x_{t2}, x_{t3}$ are the indicator variables for the time intervals, and $b_{t1}, b_{t2}, b_{t3}$ are the regression coefficients for the time intervals. Note that the cloglog link is $\ln(-\ln(1-p))$ where $p$ is the probability of the event occurring so that the left hand side of Equation 6 consists of the cloglog-transformed hazard rate ($\lambda_{ijk}(t)$) and base hazard rate ($\lambda_{0k}(t)$).
+where $\lambda_{ijk}(t)$ is the hazard rate at time $t$ for the *i*th subject for the *j*the occasions for the *k*th time interval ($k = t1, t2, t3$), $\lambda_{0k}(t)$ is the baseline hazard rate for the $k$th time interval, $x_{t1}, x_{t2}, x_{t3}$ are the indicator variables for the time intervals, and $b_{t1}, b_{t2}, b_{t3}$ are the regression coefficients for the time intervals. Note that the cloglog link is $\ln(-\ln(1-p))$ where $p$ is the probability of the event occurring so that the left hand side of Equation 6 consists of the cloglog-transformed hazard rate ($\lambda_{ijk}(t)$) and base hazard rate ($\lambda_{0k}(t)$).
 
-Rather remarkably, $b_{sex}$ and $\sigma^2_{\alpha}$ in Equation 6 are "the same" as those in Equation 3 although data structures used for two models are very different (i.e., time-to-event data vs. exploded data; Fig XXX). Using a simple simulation, we show the equivalence of $b_{sex}$ and $\sigma^2_{\alpha}$ between the Cox (frailty) model (fitted with `coxph` and `coxme`) and the binomial GLMM (fitted with `glmer` with `event` -- binary data e.g., 0 or 1 -- as the response. ; see below). Note that the number of intervals do not affect these estimates from the binomial GLMM.
+Rather remarkably, $b_{sex}$ and $\sigma^2_{\alpha}$ in Equation 6 are "the same" as those in Equation 3 although data structures used for two models are very different (i.e., time-to-event data vs. exploded data; Fig XXX). Using a simple simulation, we show the equivalence of $b_{sex}$ and $\sigma^2_{\alpha}$ between the Cox (frailty) model, fitted with `coxph` and `coxme`, and the binomial GLMM, fitted with `glmer` with `event` (0 or 1) as the response (see below). Note that the number of intervals does not affect these estimates from the binomial GLMM.
 
 Therefore, we can use variance components obtained from Cox models to estimate ICC under a binomial GLMM with the complementary log-log link where $\sigma^2_{\varepsilon}$ (or the distributional-specific variance; Equation 4) is $\pi^2/6$ on the latent scale. This means we can define ICC for Equation 3 and 6 as (Nakagawa et al. 2017):
 
@@ -91,9 +91,9 @@ $$
 \text{ICC} = \frac{\sigma^2_{\alpha}}{\sigma^2_{\alpha} + \pi^2/6}.
 $$ {#eq-icc3}
 
-In the simulation below, we show the parametric version of ICC and the non-parametric version ($\text{ICC}_{\text{np}}$) are well correlated but not equivalent (analogous to the relationship between Pearson's *r* and Kendall's $\tau$. We prefer the use of ICC as in Equation 7 over $\text{ICC}_{\text{np}}$ because the parametric version is more comparable to other ICC estimates (on the latent/link scale) derived from GLMMs (e.g. Poisson and binomial data), which are now commonly used in ecology and evolution (Nakagawa et al. 2017).
+In the simulation below, we show the parametric version of ICC and the non-parametric version ($\text{ICC}_{\text{np}}$) are well correlated but not equivalent (analogous to the relationship between Pearson's *r* and Kendall's $\tau$). We prefer the use of ICC as in Equation 7 over $\text{ICC}_{\text{np}}$ because the parametric version is more comparable to other ICC estimates (on the latent/link scale) derived from GLMMs (e.g., Poisson and binomial data), which are now commonly used in ecology and evolution (Nakagawa et al. 2017).
 
-Furthermore, the advantage of this approach is for us to add more than one random effect, which was eluded above. For example, imagine we have another cluster (a random effect), adding it to Equation 3 and then:
+Furthermore, the advantage of this approach is for us to add more than one random effect, as mentioned above. For example, imagine we have another cluster (a random effect such as population identity), adding it to Equation 3 yields:
 
 $$
 \ln\left(\frac{\lambda_{ijl}(t)}{\lambda_0(t)}\right) = b_{sex} x_{sex} + \alpha_{i} + \gamma_{l},
@@ -103,7 +103,7 @@ $$
 \gamma_{l} \sim N(0, \sigma^2_{\gamma}),
 $$
 
-where $\gamma_{l}$ is the random effect for the $l$th level of the second cluster, which is normally distributed with the mean of zero and the variane of $\sigma^2_{\gamma}$. It is interesting to notice that the two random effects can be 'nested' or 'crossed' (Schielzeth and Nakagawa, 2013).
+where $\gamma_{l}$ is the random effect for the $l$th level of the second cluster, which is normally distributed with the mean of zero and the variance of $\sigma^2_{\gamma}$. It is interesting to notice that the two random effects can be 'nested' or 'crossed' (Schielzeth and Nakagawa, 2013).
 
 An example of the nested random effects are individual ($\alpha_{i}$) and population ($\gamma_{l}$) where individuals are nested within populations. In this case, the ICC for individuals can be defined as:
 
@@ -111,19 +111,19 @@ $$
 \text{ICC}_{\text{ind1}} = \frac{\sigma^2_{\alpha} + \sigma^2_{\gamma}}{\sigma^2_{\alpha} + \sigma^2_{\gamma} + \pi^2/6}.
 $$ {#eq-icc4}
 
-The reason both variance components are required for ICC for individuals is that some of similarities of a pair of individuals come from belonging to the same population. An example of the crossed random effects are individual ($\alpha_{i}$) and year ($\gamma_{l}$) where individuals are not nested within years. This time, the ICC for individuals can be written as:
+The reason both variance components are required for ICC for individuals is that some of similarities of a pair of individuals come from belonging to the same population. An example of the crossed random effects are individual ($\alpha_{i}$) and year ($\gamma_{l}$) where individuals are not nested within years but observed across multiple years. This time, the ICC for individuals can be written as:
 
 $$
 \text{ICC}_{\text{ind2}} = \frac{\sigma^2_{\alpha}}{\sigma^2_{\alpha} + \sigma^2_{\gamma} + \pi^2/6}.
 $$ {#eq-icc5}
 
-If one wants to remove or adjusting the effect of year, and then, ICC for individuals simplifies to Equation 7. Speaking of adjusting, all the ICC formulas presented above represents 'adjusted' repeatablity (ICC; *sensu* Nakagawa and Schielzeth, 2010) because the effect of sex is accounted for in these models above. We can obtain 'unadjusted' repeatablity (ICC) by fitting the model without the fixed effect (sex), for example by changing Equation 3:
+If one wants to remove or adjust the effect of year, then ICC for individuals simplifies to Equation 7. Speaking of adjusting, all the ICC formulas presented above represent 'adjusted' repeatability (ICC; *sensu* Nakagawa and Schielzeth, 2010) because the effect of sex is accounted for in these models. We can obtain 'unadjusted' repeatablity (ICC) by fitting the model without the fixed effect (sex), for example by changing Equation 3:
 
 $$
 \ln\left(\frac{\lambda_{ij}(t)}{\lambda_0(t)}\right) = \alpha_{i}.
 $$ {#eq-cox5}
 
-Importantly, $\sigma^2_{\alpha}$ and so ICC values should be larger obtained from this model (Equation 11) than those obtained from Equation 3 given the fixed effect explains non-zero variance. On the online page (www.github....xxxx), we show how to fit models and obtain ICC estimates, described above.
+Importantly, the $\sigma^2_{\alpha}$ and ICC values obtained from this model should be larger (Equation 11) than those obtained from Equation 3 given the fixed effect explains non-zero variance. In the supplementary materials (www.github....xxxx), we show how to fit models and obtain ICC estimates that we described above.
 
 ## Simulation results
 

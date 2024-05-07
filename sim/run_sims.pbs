@@ -1,0 +1,14 @@
+#!/bin/bash
+	
+#PBS -N sim_rpt
+#PBS -l select=1:ncpus=1:mem=5gb
+#PBS -l walltime=00:20:00
+#PBS -J 1-100
+
+#working direction
+cd /srv/scratch/z5394590/survival_repeatability/
+
+module purge
+module add r/4.3.1
+
+Rscript sim_main.R

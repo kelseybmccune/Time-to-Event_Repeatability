@@ -65,7 +65,7 @@ dat <- data.frame(observation = 1:n, cluster = cluster, sex = sex, survival_time
 #VarCorr(coxme_fit)$cluster[[1]]
 
 # this can be 3 or 9     
-intervals <- 9 # the number of intervals
+intervals <- 3 # the number of intervals
 
 # Fit a discrete-time survival model with a frailty term using the glmer function from the lme4 package
 exploded_dat <- survSplit(Surv(survival_time, event) ~ sex + cluster, data = dat,
@@ -77,10 +77,12 @@ exploded_dat <- survSplit(Surv(survival_time, event) ~ sex + cluster, data = dat
 
 # time interval
 exploded_dat$t_interval <- as.factor(exploded_dat$tstart)
-
+exploded_dat$sex <- as.factor(exploded_dat$sex)
 
 # modeling
 # Fit a Cox proportional hazards model with a frailty term using the coxme package
+
+
 coxme_fit <- coxme(Surv(survival_time, event) ~ sex + (1|cluster), data = dat)
 coxph_fit1 <- coxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gaussian"), dat)
 coxph_fit2 <- coxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gamma"), dat)

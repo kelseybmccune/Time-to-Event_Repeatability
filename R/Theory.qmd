@@ -79,9 +79,9 @@ $$
 \ln\left( \frac{-\ln(1-\lambda_{ijk}(t))}{-\ln(1-\lambda_{0k}(t))} \right) = b_{sex} x_{sex} + b_{t1} x_{t1} +  b_{t2} x_{t2} + b_{t3} x_{t3} + \alpha_{i}, 
 $$ {#eq-glmm1}
 
-where $\lambda_{ijk}(t)$ is the hazard rate at time $t$ for the *i*th subject for the *j*the occasions for the *k*th time interval ($k = t1, t2, t3$), $\lambda_{0k}(t)$ is the baseline hazard rate for $k$ is the time interval, $x_{t1}, x_{t2}, x_{t3}$ are the indicator variables for the time intervals, and $b_{t1}, b_{t2}, b_{t3}$ are the regression coefficients for the time intervals. Note that the cloglog link is $\ln(-\ln(1-p))$ where $p$ is the probability of the event occurring so that the left hand side of Equation 6 consistes of the cloglog-transformed hazard rate ($\lambda_{ijk}(t)$) and base hazard rate ($\lambda_{0k}(t)$).
+where $\lambda_{ijk}(t)$ is the hazard rate at time $t$ for the *i*th subject for the *j*the occasions for the *k*th time interval ($k = t1, t2, t3$), $\lambda_{0k}(t)$ is the baseline hazard rate for $k$ is the time interval, $x_{t1}, x_{t2}, x_{t3}$ are the indicator variables for the time intervals, and $b_{t1}, b_{t2}, b_{t3}$ are the regression coefficients for the time intervals. Note that the cloglog link is $\ln(-\ln(1-p))$ where $p$ is the probability of the event occurring so that the left hand side of Equation 6 consists of the cloglog-transformed hazard rate ($\lambda_{ijk}(t)$) and base hazard rate ($\lambda_{0k}(t)$).
 
-Rather remarkably, $b_{sex}$ and $\sigma^2_{\alpha}$ are "the same" as in Equation 3 although the data structures used for two models are very different (i.e., time-to-event data vs. exploded data; Fig XXX). Using a simple simulation, we show the equivalence of $b_{sex}$ and $\sigma^2_{\alpha}$ between the Cox (frailty) model (fitted with `coxph` and `coxme`) and the binomial GLMM (fitted with `glmer`;see below). Note that the number of intervals do not affect these estimates from the binomial GLMM.
+Rather remarkably, $b_{sex}$ and $\sigma^2_{\alpha}$ in Equation 6 are "the same" as those in Equation 3 although data structures used for two models are very different (i.e., time-to-event data vs. exploded data; Fig XXX). Using a simple simulation, we show the equivalence of $b_{sex}$ and $\sigma^2_{\alpha}$ between the Cox (frailty) model (fitted with `coxph` and `coxme`) and the binomial GLMM (fitted with `glmer` with `event` -- binary data e.g., 0 or 1 -- as the response. ; see below). Note that the number of intervals do not affect these estimates from the binomial GLMM.
 
 Therefore, we can use variance components obtained from Cox models to estimate ICC under a binomial GLMM with the complementary log-log link where $\sigma^2_{\varepsilon}$ (or the distributional-specific variance; Equation 4) is $\pi^2/6$ on the latent scale. This means we can define ICC for Equation 3 and 6 as (Nakagawa et al. 2017):
 
@@ -109,21 +109,21 @@ $$
 \text{ICC}_{\text{ind1}} = \frac{\sigma^2_{\alpha} + \sigma^2_{\gamma}}{\sigma^2_{\alpha} + \sigma^2_{\gamma} + \pi^2/6}.
 $$ {#eq-icc4}
 
-The reason we need both variance components are required for ICC for individuals is that some of similarities of a pair of individuals come from belonging to the same population. An example of the crossed random effects are individual ($\alpha_{i}$) and year ($\gamma_{l}$) where individuals are not nested within years. This time, the ICC for individuals can be written as:
+The reason both variance components are required for ICC for individuals is that some of similarities of a pair of individuals come from belonging to the same population. An example of the crossed random effects are individual ($\alpha_{i}$) and year ($\gamma_{l}$) where individuals are not nested within years. This time, the ICC for individuals can be written as:
 
 $$
 \text{ICC}_{\text{ind2}} = \frac{\sigma^2_{\alpha}}{\sigma^2_{\alpha} + \sigma^2_{\gamma} + \pi^2/6}.
 $$ {#eq-icc5}
 
-If one wants to remove or adjusting the effect of year, and then, ICC for individuals simplifes to Equation 7. Speaking of adjusting, all the ICC formulas presented above represents 'adjusted' repeatablity (ICC; *sensu* Nakagawa and Schielzeth, 2010) because the effect of sex is accounted for in these models above. We can obtain 'unadjusted' repeatablity (ICC) by fitting the model without the fixed effect (sex), for example by changing Equation 3:
+If one wants to remove or adjusting the effect of year, and then, ICC for individuals simplifies to Equation 7. Speaking of adjusting, all the ICC formulas presented above represents 'adjusted' repeatablity (ICC; *sensu* Nakagawa and Schielzeth, 2010) because the effect of sex is accounted for in these models above. We can obtain 'unadjusted' repeatablity (ICC) by fitting the model without the fixed effect (sex), for example by changing Equation 3:
 
 $$
 \ln\left(\frac{\lambda_{ij}(t)}{\lambda_0(t)}\right) = \alpha_{i}.
 $$ {#eq-cox5}
 
-Importantly, $\sigma^2_{\alpha}$ and so ICC values should be larger obtained from this model (Equation 11) than those obtained from Equation 3 given the fixed effect explains non-zero variance. On the online page (www.github....xxxx), we show how to fit models and ICC estimates, described above.
+Importantly, $\sigma^2_{\alpha}$ and so ICC values should be larger obtained from this model (Equation 11) than those obtained from Equation 3 given the fixed effect explains non-zero variance. On the online page (www.github....xxxx), we show how to fit models and obtain ICC estimates, described above.
 
-## Methods (for simulaiton)
+## Simulation results
 
 Note - I do not think we need a section for simulation???
 

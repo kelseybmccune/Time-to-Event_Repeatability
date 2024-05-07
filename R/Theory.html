@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Theory</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="Theory_files/libs/clipboard/clipboard.min.js"></script>
+<script src="Theory_files/libs/quarto-html/quarto.js"></script>
+<script src="Theory_files/libs/quarto-html/popper.min.js"></script>
+<script src="Theory_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="Theory_files/libs/quarto-html/anchor.min.js"></script>
+<link href="Theory_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="Theory_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="Theory_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="Theory_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="Theory_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Theory</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="proportional-hazards-models-and-intra-class-correlation" class="level2">
+<h2 class="anchored" data-anchor-id="proportional-hazards-models-and-intra-class-correlation">Proportional-hazards models and intra-class correlation</h2>
+<p>Cox proportional-hazards models (or Cox regression) estimate the hazard (rate) of an event occurring in relation to predictor variables with the time-to-event data (i.e., time taken till the event or censoring where ; Cox 1972). The hazard is a rate of which an event occurring at time <span class="math inline">\(t\)</span>. The hazard rate is defined in a Cox regression as:</p>
+<p><span id="eq-cox1"><span class="math display">\[
+\lambda_{i}(t) = \lambda_0(t) \exp(b_1 x_1 + b_2 x_2 + \ldots + b_m x_m),
+\tag{1}\]</span></span></p>
+<p>where <span class="math inline">\(\lambda(t)\)</span> is the hazard rate at time <span class="math inline">\(t\)</span> for the <em>i</em>th subject (individual), <span class="math inline">\(\lambda_0(t)\)</span> is the baseline hazard rate, <span class="math inline">\(\beta_1, \beta_2, \ldots, \beta_m\)</span> are the regression coefficients, and <span class="math inline">\(x_1, x_2, \ldots, x_m\)</span> are the predictor variables. Note <span class="math inline">\(\lambda_0(t)\)</span> take the place of the intercept as <span class="math inline">\(\exp(\ln(\lambda_0(t)) + b_1 x_1 + \ldots_)\)</span> or <span class="math inline">\(\exp(b_0 + b_1 x_1 + \ldots_)\)</span> where <span class="math inline">\(\ln(\lambda_0(t)) = b0\)</span> (‘ln’ is a natural logarithm). Equation 1 can be rearranged to:</p>
+<p><span id="eq-cox2"><span class="math display">\[
+\ln\left(\frac{\lambda_{i}(t)}{\lambda_0(t)}\right) = b_1 x_1 + b_2 x_2 + \ldots + b_m x_m,
+\tag{2}\]</span></span></p>
+<p>for the right hand side to take a linear form, which is more familiar for many readers although it does not have the intercept (i.e., <span class="math inline">\(b_0\)</span>). To fit such a model using, for example, R, one needs to provide the time-to-event data in the form of a <code>Surv</code> object (e.g., <code>Surv(time, event)</code> where <code>time</code> is time taken till an event or censoring and <code>event</code> is usually 0 or 1, indicating whether the event occurred or not). The Cox model can be fitted using the <code>coxph</code> in the <code>survival</code> package (Therneau et al.&nbsp;2015).</p>
+<!---  --->
+<p>Now let us assume we have one predictor variable, sex, <span class="math inline">\(x_{sex}\)</span>, and we have a random effect (or cluster) <span class="math inline">\(\alpha\)</span> (e.g.&nbsp;individuals or populations). The Cox proportional-hazards model can be extended to include a random effect (individual identify), which is often referred to as the ‘frailty’ term as (indeed, Cox regressions with a single random effect is known as the frailty model):</p>
+<p><span id="eq-cox3"><span class="math display">\[
+\ln\left(\frac{\lambda_{ij}(t)}{\lambda_0(t)}\right) = b_{sex} x_{sex} + \alpha_{i},
+\tag{3}\]</span></span></p>
+<p><span class="math display">\[
+\alpha_{i} \sim N(0, \sigma^2_{\alpha}),
+\]</span></p>
+<p>where <span class="math inline">\(\lambda_{ij}(t)\)</span> is the hazard rate at time <span class="math inline">\(t\)</span> for the <em>i</em>th individual for the <em>j</em>th occasion (observation). This model (frailty model) can be fitted using the <code>coxme</code> function in the <code>coxme</code> R package function (Therneau 2015) as well as <code>coxph</code>.</p>
+<!--- Therneau, Terry M., and Maintainer Terry M. Therneau. "Package ‘coxme’." R package version 2.5 (2015). --->
+<p>Now we have defined the Cox model, let us define repeatably or intra-class correlations (ICC) in its simplest form when the trait of interest (the response variable) is a Gaussian variable (i.e.&nbsp;having normally distributed residuals):</p>
+<p><span id="eq-icc1"><span class="math display">\[
+\text{ICC} = \frac{\sigma^2_{\alpha}}{\sigma^2_{\alpha} + \sigma^2_{\varepsilon}},
+\tag{4}\]</span></span></p>
+<p>where <span class="math inline">\(\sigma^2_{\alpha}\)</span> is the variance of the random effect (identity for a cluster: e.g.&nbsp;individuals so the between-cluster variance) and <span class="math inline">\(\sigma^2_{\epsilon}\)</span> is the variance of the residuals (or within-cluster variance; Nakagawa &amp; Schielzeth 2010). The ICC can be interpreted as the proportion of the total variance that is due to the between-cluster variance. The ICC can be calculated for (generalized) linear mixed-effect models (LMMS or GLMMs). For example, the R pacakge, <code>rptR</code> can be used to calculate the ICC for a GLMM, via <code>lmer</code> and <code>glmer</code> function in the <code>lme4</code> package.</p>
+<p>Nakagawa &amp; Schielzeth (2010) suggest that for non-Guassian data (e.g.&nbsp;binomial or Poisson), the within-cluster variance can be determined by what distributional assumptions GLMM makes (e.g.&nbsp;binomial or Poisson). For example, to obtain ICC for binary GLMMs on the latest (link/transformed) scale, <span class="math inline">\(\sigma^2_{\epsilon}\)</span> can be assumed to be <span class="math inline">\(\pi^2/3\)</span> (they call <span class="math inline">\(\sigma^2_{\epsilon}\)</span> as the distributional specific variance; for more details, see Nakagawa &amp; Schielzeth 2010. Nakagawa et al.&nbsp;2017). However, Cox models make no distributional assumptions about the hazard rate (i.e., non-parametric; Equation 1 &amp; 2) although frailty models (Equation 3) has a random effect of a Gaussian distribution (this is why, this model is known as semi-parametric. Therefore, we could not calculate the ICC for Cox models.</p>
+<p>Yet, in the statistical literature, a formula for parametric version of ICC (<span class="math inline">\(\text{ICC}_{\text{np}}\)</span>) for the frailty model is known when we make the random effect is disbursed as a Gamma distribution on the exponential scale. If we denote the variance from a Gamma distribution as <span class="math inline">\(\theta_{\alpha}\)</span> under Equation 3, <span class="math inline">\(\text{ICC}_{\text{np}}\)</span> can be written as:</p>
+<p><span id="eq-icc2"><span class="math display">\[
+\text{ICC}_{\text{np}} = \frac{\theta_{\alpha}}{\theta_{\alpha} + 2},
+\tag{5}\]</span></span></p>
+<p><span class="math display">\[
+\exp(\alpha_{i}) \sim G\left(\frac{1}{\theta_{\alpha}}, \frac{1}{\theta_{\alpha}} \right),
+\]</span> where the first <span class="math inline">\(1/\theta_{\alpha}\)</span> and the second are <span class="math inline">\(1/\theta_{\alpha}\)</span>, the shape and the rate parameter of the Gamma distribution, respectively (such parameterization results in the mean, <span class="math inline">\(\text{E}(\exp(\alpha_{i})) = 1\)</span> and variance, <span class="math inline">\(\text{Var}(\exp(\alpha_{i})) = \theta_{\alpha}\)</span>).</p>
+<p>The estimate, <span class="math inline">\(\text{ICC}_{\text{np}}\)</span> is Kendall’s <span class="math inline">\(\tau\)</span> (the rank correlation for within-cluster observations) for the frailty model (Hougaard 2000). Unfortunately, there is no closed formula when assuming a Gaussian distribution for the random effect as in Equation 3. Yet, <span class="math inline">\(\text{ICC}_{\text{np}}\)</span> can be obtained numerically and we provide an R function based on the function from the R package, <code>parfm</code> (Munda et al.&nbsp;2012). We note that and are unlikely to be the same but <span class="math inline">\(\text{ICC}_{\text{np}}\)</span> values, which we show in the simulation below.</p>
+<!--- Hougaard, Philip, and Philip Hougaard. Analysis of multivariate survival data. Vol. 564. New York: Springer, 2000 --->
+<p>An issue with the <span class="math inline">\(\text{ICC}_{\text{np}}\)</span> is that it is not a parametric version of ICC and more importantly, it is not clear whether this method can be extended where a Cox model has more than one random effect (at least, piratically speaking). Therefore, we need to use a trick to turn a time-to-event data for Cox models into a data set where we could fit a GLMM so that we can obtain parametric versions of ICCs.</p>
+</section>
+<section id="cox-proportional-hazards-models-and-generalized-linear-mixed-models" class="level2">
+<h2 class="anchored" data-anchor-id="cox-proportional-hazards-models-and-generalized-linear-mixed-models">Cox proportional-hazards models and generalized linear mixed models</h2>
+<!--- Finkelstein, Dianne M. "A proportional hazards model for interval-censored failure time data." Biometrics (1986): 845-854.
+
+Hirsch, Katharina, Andreas Wienke, and Oliver Kuss. "Log-normal frailty models fitted as Poisson generalized linear mixed models." Computer methods and programs in biomedicine 137 (2016): 167-175.
+--->
+<p>In the statistical literature, it seems to be well known that the frailty model (Equation 3) can be fitted as a Poisson GLMM (known as, the piece-wise exponential model; e.g., Hirsh et al.&nbsp;2016) or a binomial GLMM (the discrete-time model; Finkelstein 1986; for an accessible non-technical account, see Austin 2017). Here, we show the discrete-time model, more specifically, the binomial GLMM with the complementary log-log (cloglog) link can be used to fit a comparable model as Equation 3 by “exploding” the time-to-even data set by defining arbitrary discrete time intervals (Fig XXX shows an example of such a exploded data set compared to the original). If we assume we have three (arbitrary discrete) time intervals (<em>t1</em>, <em>t2</em> &amp; <em>t3</em>) This binomial GLMM (without the intercept) is defined as (note that the cloglog link is <span class="math inline">\(\ln(-\ln(1-p))\)</span> where <span class="math inline">\(p\)</span> is the probability of the event occurring)) :</p>
+<p><span id="eq-glmm1"><span class="math display">\[
+\ln\left( \frac{-\ln(1-\lambda_{ijk}(t))}{-\ln(1-\lambda_{0k}(t))} \right) = b_{sex} x_{sex} + b_{t1} x_{t1} +  b_{t2} x_{t2} + b_{t3} x_{t3} + \alpha_{i},
+\tag{6}\]</span></span></p>
+<p>where where <span class="math inline">\(\lambda_{ijk}(t)\)</span> is the hazard rate at time <span class="math inline">\(t\)</span> for the <em>i</em>th subject for the <em>j</em>the occasions for the <em>k</em>th time interval (<span class="math inline">\(k = t1, t2, t3\)</span>), <span class="math inline">\(\lambda_{0k}(t)\)</span> is the baseline hazard rate for <span class="math inline">\(k\)</span> is the time interval, <span class="math inline">\(x_{t1}, x_{t2}, x_{t3}\)</span> are the indicator variables for the time intervals, and <span class="math inline">\(b_{t1}, b_{t2}, b_{t3}\)</span> are the regression coefficients for the time intervals.</p>
+<p>Rather remarkably, <span class="math inline">\(b_{sex}\)</span> and <span class="math inline">\(\sigma^2_{\alpha}\)</span> are “the same” as in Equation 3 although the data structures used for two models are very different (i.e., time-to-event data vs.&nbsp;exploded data; Fig XXX). Using a simple simulation, we show the equivalence of <span class="math inline">\(b_{sex}\)</span> and <span class="math inline">\(\sigma^2_{\alpha}\)</span> between the Cox (frailty) model (fitted with <code>coxph</code> and <code>coxme</code>) and the binomial GLMM (fitted with <code>glmer</code>;see below). Note that the number of intervals do not affect these estimates from the binomial GLMM.</p>
+<p>Therefore, we can use variance components obtained from Cox models to estimate ICC under a binomial GLMM with the complementary log-log link where <span class="math inline">\(\sigma^2_{\varepsilon}\)</span> (or the distributional-specific variance;Equation 2) is <span class="math inline">\(\pi^2/6\)</span> on the latent scale. This means we can define ICC for Equation 3 and 6 as:</p>
+<p><span id="eq-icc3"><span class="math display">\[
+\text{ICC} = \frac{\sigma^2_{\alpha}}{\sigma^2_{\alpha} + \pi^2/6}.
+\tag{7}\]</span></span></p>
+<p>In the simulation, we show the parametric version of ICC and the non-parametric version (<span class="math inline">\(\text{ICC}_{\text{np}}\)</span>) are well correlated but not equivalent. We prefer the use of ICC as in Equation 7 over <span class="math inline">\(\text{ICC}_{\text{np}}\)</span> because the parametric version is more comparable to other ICC estimates (on the latent/link scale) derived from GLMMs (e.g.&nbsp;Poisson and binomial data), which are now commonly used in ecology and evolution.</p>
+<p>Furthermore, the strength of this approach is for us to add more than one random effect, which was eluded above. For example, imagine we have another cluster (a random effect), adding it to Equation 3 and then:</p>
+<p><span id="eq-cox4"><span class="math display">\[
+\ln\left(\frac{\lambda_{ijl}(t)}{\lambda_0(t)}\right) = b_{sex} x_{sex} + \alpha_{i} + \gamma_{l},
+\tag{8}\]</span></span></p>
+<p><span class="math display">\[
+\gamma_{l} \sim N(0, \sigma^2_{\gamma}),
+\]</span></p>
+<p>where <span class="math inline">\(\gamma_{l}\)</span> is the random effect for the <span class="math inline">\(l\)</span>th level of the second cluster, which is normally distributed with the mean of zero and the variane of <span class="math inline">\(\sigma^2_{\gamma}\)</span>. It is interesting to notice that the two random effects can be ‘nested’ or ‘crossed’ (Schielzeth and Nakagawa, 2013).</p>
+<p>An example of the nested random effects are individual (<span class="math inline">\(\alpha_{i}\)</span>) and population (<span class="math inline">\(\gamma_{l}\)</span>) where individuals are nested within populations. In this case, the ICC for individuals can be defined as:</p>
+<p><span id="eq-icc4"><span class="math display">\[
+\text{ICC}_{\text{ind1}} = \frac{\sigma^2_{\alpha} + \sigma^2_{\gamma}}{\sigma^2_{\alpha} + \sigma^2_{\gamma} + \pi^2/6}.
+\tag{9}\]</span></span></p>
+<p>The reason we need both variance components are required for ICC for individuals is that some of similarities of a pair of individuals come from belonging to the same population. An example of the crossed random effects are individual (<span class="math inline">\(\alpha_{i}\)</span>) and year (<span class="math inline">\(\gamma_{l}\)</span>) where individuals are not nested within years. This time, the ICC for individuals can be written as:</p>
+<p><span id="eq-icc5"><span class="math display">\[
+\text{ICC}_{\text{ind2}} = \frac{\sigma^2_{\alpha}}{\sigma^2_{\alpha} + \sigma^2_{\gamma} + \pi^2/6}.
+\tag{10}\]</span></span></p>
+<p>If one wants to remove or adjusting the effect of year, and then, ICC for individuals simplifes to Equation 7. Speaking of adjusting, all the ICC formulas presented above represents ‘adjusted’ repeatablity (ICC; <em>sensu</em> Nakagawa and Schielzeth, 2010) because the effect of sex is accounted for in these models above. We can obtain ‘unadjusted’ repeatablity (ICC) by fitting the model without the fixed effect (sex), for example by changing Equation 3:</p>
+<p><span id="eq-cox5"><span class="math display">\[
+\ln\left(\frac{\lambda_{ij}(t)}{\lambda_0(t)}\right) = \alpha_{i}.
+\tag{11}\]</span></span></p>
+<p>Importantly, <span class="math inline">\(\sigma^2_{\alpha}\)</span> and so ICC values should be larger obtained from this model (Equation 11) than those obtained from Equation 3 given the fixed effect explains non-zero variance. On the online page (www.github….xxxx), we show how to fit models and ICC estimates, described above.</p>
+</section>
+<section id="methods-for-simulaiton" class="level2">
+<h2 class="anchored" data-anchor-id="methods-for-simulaiton">Methods (for simulaiton)</h2>
+<p>Note - I do not think we need a section for simulation???</p>
+</section>
+<section id="case-studies" class="level2">
+<h2 class="anchored" data-anchor-id="case-studies">Case studies</h2>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

@@ -75,51 +75,136 @@ exploded_dat <- survSplit(Surv(survival_time, event) ~ sex + cluster, data = dat
 exploded_dat$t_interval <- as.factor(exploded_dat$tstart)
 
 
-##### modeling  ----------------------------------------------
-
-##### TODO
-### - wrap models into a function and use quietly
-### - store warning message if there is one
-### - use if statement to extract model estimates or set to zero if there is a warning message
+##### modeling  --------------------------------------------------------
 
 
+#### coxme:
+# fit a Cox prop hazards model with a frailty term using the coxme package
+fit_coxme <- quietly(function(dat) {
+  coxme(Surv(survival_time, event) ~ sex + (1 | cluster), data = dat)
+})
+coxme_mod <- fit_coxme(dat)
+coxme_mod_res <- coxme_mod$result
+coxme_mod_errors <- coxme_mod$messages
+coxme_mod_warnings <- coxme_mod$warnings
 
-# Fit a Cox proportional hazards model with a frailty term using the coxme package
-coxme_fit <- function(data=dat){
-  coxme(Surv(survival_time, event) ~ sex + (1|cluster), data = dat)
+#
+if (length(coxme_mod_warnings)==0 && length(coxme_mod_errors)==0) {
+  coxme_mod_res <- coxme_mod$result
+  beta_coxme <- fixef(coxme_mod_res)
+  var_coxme <- VarCorr(coxme_mod_res)$cluster[[1]]
+  ICC_coxme <- fr.lognormal(k, s, var_coxme, what = "tau")
+  coxme_mod_errors <- NA
+  coxme_mod_warnings <- NA
+} else { # set to NA and save warning or error message
+  coxme_mod_res <- NA
+  beta_coxme <- NA
+  var_coxme <- NA
+  ICC_coxme <- NA
+  coxme_mod_errors <- ifelse(length(coxme_mod_errors)==0,
+                              NA, paste(coxme_mod_errors, collapse="; "))
+  coxme_mod_warnings <- ifelse(length(coxme_mod_warnings)==0,
+                                NA, paste(coxme_mod_warnings, collapse="; "))
 }
 
 
-# Fit a Cox proportional hazards model with a frailty term using the survival package (assuming normal dist)
-coxph_fit1 <- try(coxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gaussian"), dat))
 
 
-# Fit a Cox proportional hazards model with a frailty term using the survival package (assuming gamma dist)
-coxph_fit2 <- try(coxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gamma"), dat))
+#### coxph1 (normal)
+# fit a Cox prop hazards model with a frailty term using the survival package (assuming normal dist)
+fit_coxph1 <- quietly(function(dat) {
+  coxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gaussian"), dat)
+})
+coxph1_mod <- fit_coxph1(dat)
+coxph1_mod_res <- coxph1_mod$result
+coxph1_mod_errors <- coxph1_mod$messages
+coxph1_mod_warnings <- coxph1_mod$warnings
+
+# extract model estimates if there is no error or warning
+if (length(coxph1_mod_warnings)==0 && length(coxph1_mod_errors)==0) {
+  coxph1_mod_res <- coxph1_mod$result
+  beta_coxph1 <- coxph1_mod_res$coefficients
+  var_coxph_normal <- coxph1_mod_res$history$`frailty(cluster, distribution = "gaussian")`$theta
+  ICC_coxph1 <- fr.lognormal(1, sigma2.f, var_coxph_normal, what = "tau")
+  coxph1_mod_errors <- NA
+  coxph1_mod_warnings <- NA
+} else { # set to NA and save warning or error message
+  coxph1_mod_res <- NA
+  beta_coxph1 <- NA
+  var_coxph_normal <- NA
+  ICC_coxph1 <- NA
+  coxph1_mod_errors <- ifelse(length(coxph1_mod_errors)==0,
+                              NA, paste(coxph1_mod_errors, collapse="; "))
+  coxph1_mod_warnings <- ifelse(length(coxph1_mod_warnings)==0,
+                                NA, paste(coxph1_mod_warnings, collapse="; "))
+}
 
 
-# Fit a discrete-time survival model with a frailty term using the glmer function from the lme4 package
-glmm_fit <- try(glmer(event~ -1 + t_interval + sex + (1|cluster), 
-                  data=exploded_dat, family=binomial(link="cloglog")))
 
 
+#### coxph2 (gamma)
+# fit a Cox prop hazards model with a frailty term using the survival package (assuming gamma dist)
 
-# # set up quietly to extract error and warning messages
-qcoxme <- quietly(coxme)
-qcoxph <- quietly(coxph)
-qglmer <- quietly(glmer)
-qcoxme_fit <- qcoxme(Surv(survival_time, event) ~ sex + (1|cluster), data = dat)
-qcoxph_fit1 <- qcoxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gaussian"), dat)
-qcoxph_fit2 <- qcoxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gamma"), dat)
-qglmm_fit <- qglmer(event~ -1 + t_interval + sex + (1|cluster), data=exploded_dat, family=binomial(link="cloglog"))
+fit_coxph2 <- quietly(function(dat) {
+  coxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gamma"), dat)
+})
+coxph2_mod <- fit_coxph2(dat)
+coxph2_mod_res <- coxph2_mod$result
+coxph2_mod_errors <- coxph2_mod$messages
+coxph2_mod_warnings <- coxph2_mod$warnings
+
+# extract model estimates if there is no error or warning
+if (length(coxph2_mod_warnings)==0 && length(coxph2_mod_errors)==0) {
+  coxph2_mod_res <- coxph2_mod$result
+  beta_coxph2 <- coxph2_mod_res$coefficients
+  var_coxph_gamma <- coxph2_mod_res$history$`frailty(cluster, distribution = "gamma")`$theta # expected to be different
+  ICC_coxph2 <- var_coxph_gamma/(var_coxph_gamma + 2)
+  cox_mod_errors <- NA
+  coxph2_mod_warnings <- NA
+} else { # set to NA and save warning or error message
+  coxph2_mod_res <- NA
+  beta_coxph2 <- NA
+  var_coxph_gamma <- NA
+  ICC_coxph2 <- NA
+  coxph2_mod_errors <- ifelse(length(coxph2_mod_errors)==0,
+                              NA, paste(coxph2_mod_errors, collapse="; "))
+  coxph2_mod_warnings <- ifelse(length(coxph2_mod_warnings)==0,
+                                NA, paste(coxph2_mod_warnings, collapse="; "))
+}
 
 
-##### extract model estimates  ---------------------------------
+#### glmm (binomial)
+# fit a discrete-time survival model with a frailty term using the glmer function from the lme4 package
+fit_glmm <- quietly(function(dat) {
+  glmer(event ~ -1 + t_interval + sex + (1|cluster), 
+        data=exploded_dat, family=binomial(link="cloglog"))
+})
 
-var_coxme <- VarCorr(coxme_fit)$cluster[[1]]
-var_coxph_normal <- coxph_fit1$history$`frailty(cluster, distribution = "gaussian")`$theta
-var_coxph_gamma <- coxph_fit2$history$`frailty(cluster, distribution = "gamma")`$theta # expected to be different
-var_glmm <- VarCorr(glmm_fit)$cluster[[1]]
+glmm_mod <- fit_glmm(dat)
+glmm_mod_res <- glmm_mod$result
+glmm_mod_errors <- glmm_mod$messages
+glmm_mod_warnings <- glmm_mod$warnings
+
+# extract model estimates if there is no error or warning
+if (length(glmm_mod_warnings)==0 && length(glmm_mod_errors)==0) {
+  glmm_mod_res <- glmm_mod$result
+  beta_glmm <- fixef(glmm_mod_res)["sex"]
+  var_glmm <- VarCorr(glmm_mod_res)$cluster[[1]]
+  ICC_glmm <- var_glmm/(var_glmm + pi^2/6)
+  glmm_mod_errors <- NA
+  glmm_mod_warnings <- NA
+} else { # set to NA and save warning or error message
+  glmm_mod_res <- NA
+  beta_glmm <- NA
+  var_glmm <- NA
+  ICC_glmm <- NA
+  glmm_mod_errors <- ifelse(length(glmm_mod_errors)==0,
+                            NA, paste(glmm_mod_errors, collapse="; "))
+  glmm_mod_warnings <- ifelse(length(glmm_mod_warnings)==0,
+                              NA, paste(glmm_mod_warnings, collapse="; "))
+}
+
+
 
 
 ##### save results  ----------------------------------------------
@@ -140,14 +225,22 @@ res <- data.frame(name = rep(name, 4),
                                    var_coxph_normal,
                                    var_coxph_gamma,
                                    var_glmm),
-                  beta_est = c(fixef(coxme_fit),
-                               coxph_fit1$coefficients,
-                               coxph_fit2$coefficients,
-                               fixef(glmm_fit)["sex"]),
-                  ICC = c(fr.lognormal(1, sigma2.f, var_coxme, what = "tau"),
-                          fr.lognormal(1, sigma2.f, var_coxph_normal, what = "tau"),
-                          var_coxph_gamma/(var_coxph_gamma + 2),
-                          var_glmm/(var_glmm + pi^2/6)))
+                  beta_est = c(beta_coxme,
+                               beta_coxph1,
+                               beta_coxph2,
+                               beta_glmm),
+                  ICC = c(ICC_coxme,
+                          ICC_coxph1,
+                          ICC_coxph2,
+                          ICC_glmm),
+                  model_warnings = c(coxme_mod_warnings,
+                                     coxph1_mod_warnings,
+                                     coxph2_mod_warnings,
+                                     glmm_mod_warnings),
+                  model_errors = c(coxme_mod_errors,
+                                   coxph1_mod_errors,
+                                   coxph2_mod_errors,
+                                   glmm_mod_errors))
 
 
 # save the output according to the job array:

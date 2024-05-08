@@ -16,6 +16,7 @@ tab <- read.csv("sim/job_array.csv")
 
 # get job number from pbs script
 job <- as.numeric(Sys.getenv("PBS_ARRAY_INDEX"))
+#job <- 1250
 
 # get current job information
 name <- tab$name[tab$job_number == job] 
@@ -78,17 +79,19 @@ exploded_dat$t_interval <- as.factor(exploded_dat$tstart)
 ##### modeling  --------------------------------------------------------
 
 
-#### coxme:
+###### coxme -------------
 # fit a Cox prop hazards model with a frailty term using the coxme package
 fit_coxme <- quietly(function(dat) {
   coxme(Surv(survival_time, event) ~ sex + (1 | cluster), data = dat)
 })
+
+# save model output
 coxme_mod <- fit_coxme(dat)
 coxme_mod_res <- coxme_mod$result
 coxme_mod_errors <- coxme_mod$messages
 coxme_mod_warnings <- coxme_mod$warnings
 
-#
+# extract model estimates if there is no error or warning
 if (length(coxme_mod_warnings)==0 && length(coxme_mod_errors)==0) {
   coxme_mod_res <- coxme_mod$result
   beta_coxme <- fixef(coxme_mod_res)
@@ -110,11 +113,13 @@ if (length(coxme_mod_warnings)==0 && length(coxme_mod_errors)==0) {
 
 
 
-#### coxph1 (normal)
+#### coxph1 (normal) -------------
 # fit a Cox prop hazards model with a frailty term using the survival package (assuming normal dist)
 fit_coxph1 <- quietly(function(dat) {
   coxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gaussian"), dat)
 })
+
+# save model output
 coxph1_mod <- fit_coxph1(dat)
 coxph1_mod_res <- coxph1_mod$result
 coxph1_mod_errors <- coxph1_mod$messages
@@ -142,12 +147,14 @@ if (length(coxph1_mod_warnings)==0 && length(coxph1_mod_errors)==0) {
 
 
 
-#### coxph2 (gamma)
+#### coxph2 (gamma) -------------
 # fit a Cox prop hazards model with a frailty term using the survival package (assuming gamma dist)
 
 fit_coxph2 <- quietly(function(dat) {
   coxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gamma"), dat)
 })
+
+# save model output
 coxph2_mod <- fit_coxph2(dat)
 coxph2_mod_res <- coxph2_mod$result
 coxph2_mod_errors <- coxph2_mod$messages
@@ -159,7 +166,7 @@ if (length(coxph2_mod_warnings)==0 && length(coxph2_mod_errors)==0) {
   beta_coxph2 <- coxph2_mod_res$coefficients
   var_coxph_gamma <- coxph2_mod_res$history$`frailty(cluster, distribution = "gamma")`$theta # expected to be different
   ICC_coxph2 <- var_coxph_gamma/(var_coxph_gamma + 2)
-  cox_mod_errors <- NA
+  coxph2_mod_errors <- NA
   coxph2_mod_warnings <- NA
 } else { # set to NA and save warning or error message
   coxph2_mod_res <- NA
@@ -173,13 +180,16 @@ if (length(coxph2_mod_warnings)==0 && length(coxph2_mod_errors)==0) {
 }
 
 
-#### glmm (binomial)
+
+
+#### glmm (binomial) -------------
 # fit a discrete-time survival model with a frailty term using the glmer function from the lme4 package
 fit_glmm <- quietly(function(dat) {
   glmer(event ~ -1 + t_interval + sex + (1|cluster), 
         data=exploded_dat, family=binomial(link="cloglog"))
 })
 
+# save model output
 glmm_mod <- fit_glmm(dat)
 glmm_mod_res <- glmm_mod$result
 glmm_mod_errors <- glmm_mod$messages

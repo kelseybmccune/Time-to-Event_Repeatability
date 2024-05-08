@@ -8,8 +8,8 @@ name <- "test"
 n <- c(1000)                    # number of observations
 n_clusters <- c(200, 500)       # number of individuals (cluster)
 sigma2.f <- c(2, 4)             # variance of frailty random effect (removed 0.5 for now)
-censoring_prop <-  c(0, 0.15)  # proportion of censored data
-intervals <- c(2, 4)           # number of time intervals
+censoring_prop <-  c(0.15)  # proportion of censored data
+intervals <- c(2,3,4)           # number of time intervals
 
 # number of replications per scenario
 repl <- 100

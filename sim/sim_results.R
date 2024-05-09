@@ -72,7 +72,7 @@ plot_res <- function(res, variable_to_plot, name="res", save=TRUE) {
     theme_bw() 
   if (save) {
     filename <- sprintf("sim/output/%s_%s.png", name, variable_to_plot)
-    ggsave(filename, plot = gg, width = 8, height = 4)
+    ggsave(filename, plot = gg, width = 6, height = 4)
   }
   return(gg)
 }

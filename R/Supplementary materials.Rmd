@@ -1,0 +1,131 @@
+---
+title: "TimeToEventData"
+output: html_document
+date: "2024-05-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Background
+In the paper, "" we describe how to quantify repeatability from time-to-event data. In this supplementary materials page we demonstrate the use of this method with real data in 3 worked examples. Secondly, we present the methods and results for a simulation study to illustrate the relationship among ICC (repeatability) values derived from 4 different models and residual variance estimators.
+
+## Worked Examples
+Behavior data range widely in the number of individuals as well as the number of repeated measures on each individuals. Furthermore, the presence and amount of censored data can vary. We use openly available data to present 3 worked examples that 
+
+### Example 1: Frog aggression towards a simulated intruder
+Our first example data set is from Peignier et al. 2022. They investigated whether *A. femoralis* frogs show repeatable aggressive behavior by measuring the latency of territorial males to approach a simulated intruder. There sample size included 51 males with 3.2 +/- 1.31 trials each. Censored data are present (6% of trials) because some males did not approach the simulated intruder. These data were given a ceiling value of 300 seconds (the longest trial time). The authors log-transformed this variable and used the Gaussian family in the rpt function (Stoffel et al. 2017).
+```{r E1 - load the data, echo=FALSE}
+library(coxme)
+library(survival)
+
+# Data from Peignier et al. 2022
+
+fdata = read.csv("Frog_personality.csv")
+fdata = fdata[which(fdata$sex == "m"),c(1,2,9)] # Only males participated in the aggression test, we only need columns for ID, repetition and latency to approach the simulated intruder. Authors did not include fixed effects, so we won't either.
+fdata = fdata[!is.na(fdata$jump_s),] # Unclear what the NAs represent, but the authors remove these data, so we will too.
+fdata$event = ifelse(fdata$jump_s==300, 0,1) # Create event column that indicates whether the data were censored for that trial.
+
+head(fdata,20)
+```
+This is a classic (un-exploded) format for animal personality data. However, to get the variance components for our time-to-event ICC equation, we need a data set that includes discrete time intervals. This is referred to as an "exploded" data set and we can use the function survSplit in the survival package (cite) to easily transform the data. 
+
+How to choose interval size...
+Add interval number column
+
+```{r E1 - explode the data, echo=F}
+# decide on the intervals
+psych::describe(fdata$jump_s)
+
+fdata_int = survSplit(Surv(jump_s,event) ~ repetition+ID, data = fdata, 
+                      cut = c(50,100,150,200,250), start = "tstart",end = "tstop")
+
+head(fdata_int,20)
+```
+
+Running the cox proportional hazards model
+
+```{r E1 - cox model and ICC calculation, echo = F}
+c1 = coxme(Surv(tstart,tstop,event)~1+(1|ID), data = fdata_int)
+
+var <- VarCorr(c1)$ID[[1]]
+fr.lognormal(k,s,var,what = "tau")
+var/(var + pi^2/6)
+# 0.19
+# Original paper reports a repeatabiltiy of 0.24 (CI: 0.07-0.40)
+
+```
+
+
+### Example 2: Christmas tree worm re-emergence after a simulated predator attack
+These data come from Pezner et al. 2017 https://academic.oup.com/beheco/article/28/1/154/2453511. They tested the consistency of hiding time (latency to re-emerge from the hole) within and across days, and the impact of social environment. They tested 30 worms, each received 4 trials within a day and 4 days of sampling for a total of 16 trials per worm. Censored data are not explicitly stated, but there are 5 NA values from 2 individuals that we here assume are censored data. The authors log-transformed the hiding time variable, used a linear mixed model to get variance estimates, then hand-calculated repeatability.
+
+```{r E2 - load the data}
+ctw = read.csv("CTWemergence.csv")
+# "HT" variable indicates hiding time, or the latency to emerge; "Whorls" is a visual indicator of age
+
+# 2 individuals have NA values, but it is not explained why. 
+# I'll assume these are censored (the worm didn't emerge in the trial time) and give ceiling value of one unit after other highest value
+ctw$event = ifelse(is.na(ctw$HT),0,1)
+ctw$HT[which(is.na(ctw$HT))]<- 375
+
+```
+
+
+```{r E2 - explode the data}
+# decide on the intervals
+psych::describe(ctw$HT)
+
+ctw_int = survSplit(Surv(HT,event) ~ Whorls + Trial_Total + Worm_ID, data = ctw, 
+                    cut = c(50,100,150,200,250,300,350,400), start = "tstart",end = "tstop")
+
+```
+
+
+```{r E2 - cox model and ICC calculation}
+ctw.cox.int = coxme(Surv(tstart,tstop, event)~Whorls + (1|Worm_ID), data=ctw_int)
+
+var <- VarCorr(ctw.cox.int)$Worm_ID[[1]]
+var/(var + pi^2/6) #0.33
+# Original paper finds across day hiding time repeatability is 0.42
+```
+
+
+
+### Example 3: Repeatability of caching behavior in toutouwai
+Vamos & Shaw 2024 evaluated whether there were 'caching syndromes' in toutouwai (New Zealand North Island robin). They measured several variables associated with the caching behavior of this bird species, we use 'retrieval latency' here. This variable was given a ceiling value of 31 minutes if the individual was not observed to retrieve a cache within a given trial. These are the censored data and they comprise 5% of the data. The sample consisted of 51 individuals, tested once a day for 3 days. To calculate repeatability with the tools available, the authors log-transformed this latency variable and used the rpt function and Gaussian family.
+
+```{r E3 - load the data}
+toto = read.csv("Vamos&Shaw_2024_data.csv")
+toto = toto[-which(toto$year == 2021),c(2,11,14)] #retrieval latency was not measured in 2021, and we only need the columns for bird ID, latency and session because the authors did not include any fixed effects in their repeatability estimates.
+toto = unique(toto) # there was a row for each mealworm offered (5) to measure handling time, but retrieval latency was only measured once per session, so delete repeated rows
+
+toto$event = ifelse(toto$ret_latency == 31,0,1) # add event column to indicate censored data
+
+```
+
+
+```{r E3 - explode the data}
+# decide on the intervals
+psych::describe(toto$ret_latency)
+
+toto_int = survSplit(Surv(ret_latency,event) ~ session + bird, data = toto, 
+                    cut = c(5,10,15,20,25,30,35), start = "tstart",end = "tstop")
+```
+
+
+```{r E3 - cox model and ICC calculation}
+toto.cox.int = coxme(Surv(tstart,tstop, event)~1 + (1|bird), data=toto_int)
+
+var <- VarCorr(toto.cox.int)$bird[[1]]
+var/(var + pi^2/6) #0.37
+# Original paper finds across day hiding time repeatability is 0.43
+```
+
+
+
+## Simulations
+
+
+

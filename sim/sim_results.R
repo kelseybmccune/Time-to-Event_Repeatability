@@ -20,7 +20,7 @@ for (job in res.list) {
   # load in the individual simulation results
   load(job)
   # rbind to results data frame
-  results <- rbind(dat, res)
+  results <- rbind(results, res)
   # remove the current results to ensure no duplicates
   rm(res)
 }
@@ -36,7 +36,7 @@ save(list = "results", file = "collated_sim_results.RDATA")
 # Plot results #
 ################
 
-load("sim/output/collated_sim_results.RDATA")
+load("sim/output/100524/collated_sim_results.RDATA")
 
 # load libraries
 library(ggplot2)
@@ -69,13 +69,45 @@ plot_res <- function(res, variable_to_plot, name="res", save=TRUE) {
     scale_color_manual(values=c("#CE72DD", "#FECA91", "#73B496", "#8C7CBB")) +
     scale_fill_manual(values=alpha(c("#CE72DD", "#FECA91", "#73B496", "#8C7CBB"), 0.4)) + 
     labs(title=sprintf("Plot of %s", variable_to_plot),x="model",y=variable_to_plot) +
+    facet_wrap(~sigma2.f) +
     theme_bw() 
   if (save) {
     filename <- sprintf("sim/output/%s_%s.png", name, variable_to_plot)
-    ggsave(filename, plot = gg, width = 6, height = 5)
+    ggsave(filename, plot = gg, width = 8, height = 5)
   }
   return(gg)
 }
+
+
+################################################################################
+
+# filter by censoring prop and interval split
+results_int2_cens0 <- results %>%
+  filter(censoring_prop==0, intervals==2)
+
+
+# Save each plot of performance measure using par(mfrow=c(1,3))
+par(mfrow=c(1,3))
+plot_res(results_int2_cens0, "beta_est", name="beta_est_int2_cens0")
+plot_res(results_int2_cens0, "sigma2.f_est", name="sigma2_est_int2_cens0")
+plot_res(results_int2_cens0, "ICC", name="ICC_est_int2_cens0")
+
+
+# filter by censoring prop and interval split
+results_int4_cens0 <- results %>%
+  filter(censoring_prop==0, intervals==4)
+
+
+# Save each plot of performance measure using par(mfrow=c(1,3))
+par(mfrow=c(1,3))
+plot_res(results_int4_cens0, "beta_est", name="beta_est_int4_cens0")
+plot_res(results_int4_cens0, "sigma2.f_est", name="sigma2_est_int4_cens0")
+plot_res(results_int4_cens0, "ICC", name="ICC_est_int4_cens0")
+
+
+
+
+
 
 
 ################################################################################
@@ -99,6 +131,15 @@ plot_res(results_scen2 , "sigma2.f_est", name="scen2")
 plot_res(results_scen2 , "ICC", name="scen2")
 
 
+
+
+
+
+
+
+
+
+################################################################################
 
 
 # # filter out simseed.id if there is at least one warning from any model

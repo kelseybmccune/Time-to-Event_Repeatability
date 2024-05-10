@@ -233,19 +233,48 @@ summary(ctw.dtsm.fit2)
 
 
 ## quantile ctw intervals - where there are an equal number of events in each of 2 intervals
-cutpoints_q <- quantile(ctw$HT, probs = seq(0,1,0.5))
+cutpoints_q <- quantile(ctw$HT, probs = seq(0,1,0.25))
 #cutpoints_q <- cutpoints_q[-length(cutpoints_q)] # remove the last value
 
 ctw_int_q <- survSplit(Surv(HT, event) ~ Whorls + Trial_Total + Worm_ID,
                             data = ctw,
-                            cut = 20, 
+                            cut = c(14,20,33), 
                             start = "tstart",
                             end = "tstop")
-ctw_int_q$interval = ifelse(ctw_int_q$tstart == 0,1,2)
+ctw_int_q$interval = NA
+ctw_int_q$interval =  ifelse(ctw_int_q$tstart == 0,1,ctw_int_q$interval)
+ctw_int_q$interval =  ifelse(ctw_int_q$tstart == 14,2,ctw_int_q$interval)
+ctw_int_q$interval =  ifelse(ctw_int_q$tstart == 20,3,ctw_int_q$interval)
+ctw_int_q$interval =  ifelse(ctw_int_q$tstart == 33,4,ctw_int_q$interval)
 ctw.dtsm.fit3 = glmer(event ~ Whorls + interval + (1|Worm_ID), data=ctw_int_q,
                       family = binomial(link="cloglog"), nAGQ=7)
 VarCorr(ctw.dtsm.fit3)$Worm_ID[[1]]
-# random effect variance = 0.59
+# 4 intervals random effect variance = 0.82 (2 intervals random effect variance = 0.59)
 
+##### Seed dispersal distance ####
+data<-read.csv(file="data_seed_pers.csv")
+pm<-subset(data, SPP=="PM") # only one species
+
+pmdistmov<-subset(pm,REMOVE==1) # distance the seed is dispersed, only looking at seeds that were removed from the feeding platform
+pmdistmov<-subset(pmdistmov, CONS!=1) # remove rows where the seed was consumed close by the feeding platform
+pmdistmov$RECOVERED..Y.N.[which(pmdistmov$DIST..MOVED==15)]<-"Y" # one row seems to indicate the cached seed was found 15m from the feeding platform, but the categorical variable for whether it was removed is an NA 
+
+table(pmdistmov$RECOVERED..Y.N.) # how many cached seeds did they recover (i.e., how much censored data is there?)
+# 35% of data are censored
+
+dist = pmdistmov[-which(pmdistmov$ID == "UNK"),c(1,5,6,14,17)] #simplify data frame
+
+# the Recovered column is analogous to the event variable in surivival analysis. Modify it to be an integer
+dist$event = ifelse(dist$RECOVERED..Y.N.== "Y",1,0)
+quantile(dist$DIST..MOVED, probs = seq(0,1,0.25),na.rm=T)
+
+psych::describe(dist$DIST..MOVED)
+dist$DIST..MOVED[which(is.na(dist$DIST..MOVED))]<-1038 # give ceiling value to NAs
+
+dist_int = survSplit(Surv(DIST..MOVED, event) ~ TRT + GRID + ID, data = dist, 
+                     cut = c(50,146,331.5), start = "tstart",end = "tstop")
+dist.cox.int = coxme(Surv(tstart,tstop, event) ~ 1 + (1|ID), data=dist_int)
+VarCorr(dist.cox.int)$ID[[1]] 
+# Random effect variance = 0.09
 
 

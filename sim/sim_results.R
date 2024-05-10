@@ -1,11 +1,11 @@
-##############################
-# Combine simulation results #
-##############################
+##########################################
+# Combine simulation results (on katana) #
+##########################################
 
 home.wd <- "/srv/scratch/z5394590/survival_repeatability/"
 
 # initialise the result storage
-dat <- NULL
+results <- NULL
 
 # change into appropriate result folder
 setwd(paste(home.wd, "results/raw", sep = "/"))
@@ -20,7 +20,7 @@ for (job in res.list) {
   # load in the individual simulation results
   load(job)
   # rbind to results data frame
-  dat <- rbind(dat, res)
+  results <- rbind(dat, res)
   # remove the current results to ensure no duplicates
   rm(res)
 }
@@ -28,7 +28,7 @@ for (job in res.list) {
 
 # save the single result data frame within the results folder
 setwd(home.wd)
-save(list = "dat", file = "collated_sim_results.RDATA")
+save(list = "results", file = "collated_sim_results.RDATA")
 
 
 
@@ -36,18 +36,7 @@ save(list = "dat", file = "collated_sim_results.RDATA")
 # Plot results #
 ################
 
-load("data/collated_sim_results.RDATA")
-
-results <- dat
-results$model <- factor(results$model, levels=c("coxme",
-                                                "coxph_normal",
-                                                "coxph_gamma",
-                                                "glmm"))
-
-# remove outlier points
-results <- results %>%
-  filter(beta_est < 5,
-         sigma2.f_est < 10)
+load("sim/output/collated_sim_results.RDATA")
 
 # load libraries
 library(ggplot2)
@@ -58,6 +47,72 @@ library(ggplot2)
 library(ggdist)  # for half-eye plots
 library(gridExtra)
 library(ggsave)
+
+
+################################################################################
+
+# Function to plot performance measures ------------
+
+plot_res <- function(res, variable_to_plot, name="res", save=TRUE) {
+  
+  # reorder models for plots
+  res$model <- factor(res$model, levels=c("coxme",
+                                          "coxph_normal",
+                                          "glmm",
+                                          "coxph_gamma"))
+  
+  # create half eye plot
+  gg <- ggplot(res, aes(x=model, y=get(variable_to_plot), color=model, fill=model)) +
+    stat_halfeye() +  
+    geom_point(position=position_jitterdodge(dodge.width=0.9), alpha=0.6) + 
+    geom_boxplot(width=0.1, alpha=0.4) +
+    scale_color_manual(values=c("#CE72DD", "#FECA91", "#73B496", "#8C7CBB")) +
+    scale_fill_manual(values=alpha(c("#CE72DD", "#FECA91", "#73B496", "#8C7CBB"), 0.4)) + 
+    labs(title=sprintf("Plot of %s", variable_to_plot),x="model",y=variable_to_plot) +
+    theme_bw() 
+  if (save) {
+    filename <- sprintf("sim/output/%s_%s.png", name, variable_to_plot)
+    ggsave(filename, plot = gg, width = 6, height = 5)
+  }
+  return(gg)
+}
+
+
+################################################################################
+
+# get data for each scenario 1
+results_scen1 <- results %>%
+  filter(scenario==1)
+  
+# Save each plot of performance measure
+plot_res(results_scen1 , "beta_est", name="scen1")
+plot_res(results_scen1 , "sigma2.f_est", name="scen1")
+plot_res(results_scen1 , "ICC", name="scen1")
+
+# get data for each scenario 2
+results_scen2 <- results %>%
+  filter(scenario==2)
+
+# Save each plot of performance measure
+plot_res(results_scen2 , "beta_est", name="scen2")
+plot_res(results_scen2 , "sigma2.f_est", name="scen2")
+plot_res(results_scen2 , "ICC", name="scen2")
+
+
+
+
+# # filter out simseed.id if there is at least one warning from any model
+# results_scen1_red <- results_scen1 %>%
+#   group_by(simseed_id) %>%
+#   mutate(nowarnings = sum(is.na(model_warnings))) %>%
+#   filter(nowarnings == 4)
+# 
+# # Save each plot of performance measure
+# plot_res(results_scen1_red, "beta_est", name="nowarnings")
+# plot_res(results_scen1_red, "sigma2.f_est", name="nowarnings")
+# plot_res(results_scen1_red, "ICC", name="nowarnings")
+
+
 
 ###############################################################################
 
@@ -97,49 +152,3 @@ sigma2_est_plot <- ggplot(results, aes(x=model, y=ICC, color=model, fill=model))
   theme_bw()
 sigma2_est_plot
 
-
-################################################################################
-
-# Function to plot performance measures ------------
-
-plot_results <- function(res, variable_to_plot, name="res", save=TRUE) {
-  
-  # Reorder models for plots
-  res$model <- factor(res$model, levels=c("coxme",
-                                          "coxph_normal",
-                                          "glmm",
-                                          "coxph_gamma"))
-  
-  # Create ggplot object
-  gg <- ggplot(res, aes(x=model, y=get(variable_to_plot), color=model, fill=model)) +
-    stat_halfeye() +  # Replace with half-eye plot from ggdist
-    geom_point(position=position_jitterdodge(dodge.width=0.9), alpha=0.6) +  # Add points
-    geom_hline(aes(yintercept=0), color="white") + # Add line at zero
-    geom_boxplot(width=0.1, alpha=0.4) +
-    scale_color_manual(values=c("#7297C7", "#FECA91", "#A5D9A5", "#F4756B")) +
-    scale_fill_manual(values=alpha(c("#7297C7", "#FECA91", "#A5D9A5", "#F4756B"), 0.4)) + # Fill with semi-transparent pastels
-    labs(title=sprintf("Plot of %s", variable_to_plot),
-         x="Package",
-         y=variable_to_plot) +
-    scale_shape_manual(name="Species Size", values=c(16, 17, 18, 19)) +
-    facet_wrap(~ factor(species_size),
-               labeller = labeller(species_size = function(x) paste("Species size:", x)))
-  
-  if (save) {
-    filename <- sprintf("output/sim_simple/%s_%s_%diter_sim_simple.png",
-                        name, variable_to_plot, iters)
-    ggsave(filename, plot = gg, width = 8, height = 4)
-  }
-  
-  return(gg)
-}
-
-
-# Save each plot of performance measure
-plot_results(results, "run_time")
-plot_results(results, "mu_bias")
-plot_results(results, "mu_mse")
-plot_results(results, "mu_ci_width")
-plot_results(results, "s2_sp_bias")
-plot_results(results, "s2_phylo_bias")
-plot_results(results, "s2_resid_bias")

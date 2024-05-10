@@ -168,6 +168,7 @@ summary(dtsm.fit)
 
 
 #### Christmas tree worm time-to-emerge data ####
+# Pezner et al. 2017 https://academic.oup.com/beheco/article/28/1/154/2453511
 ctw = read.csv("CTWemergence.csv")
 # "HT" variable indicates hiding time, or the latency to emerge; "Whorls" is a visual indicator of age
 # 30 worms received 4 trials per day, across 4 days for a total of 16 trials. 
@@ -180,7 +181,7 @@ ctw$HT[which(is.na(ctw$HT))]<- 375
 # also, a lot of data, so restrict to just one trial per day
 ctw2 = ctw[which(ctw$Trial_Total == 1 | ctw$Trial_Total == 2 | ctw$Trial_Total == 3 | ctw$Trial_Total == 4),]
 
-ctw.emerg = coxme(Surv(HT, event)~Whorls + (1|Worm_ID), data=ctw2)
+ctw.emerg = coxme(Surv(HT, event)~Whorls + (1|Worm_ID), data=ctw)
 summary(ctw.emerg)
 #random effect variance = 1.671
 var(ranef(ctw.emerg)$Worm_ID) # 1.42
@@ -194,21 +195,19 @@ var(ranef(ctw.emerg.olre)$Worm_ID) # 1.42
 
 
 ## ctw intervals
-ctw.int = survSplit(Surv(HT,event) ~ Whorls + Trial_Total + Worm_ID, data = ctw2, 
-                    cut = ctw2$HT, start = "tstart",end = "tstop")
-
+ctw.int = survSplit(Surv(HT,event) ~ Whorls + Trial_Total + Worm_ID, data = ctw, 
+                    cut = ctw$HT, start = "tstart",end = "tstop")
 
 ctw.cox.int = coxme(Surv(tstart,tstop, event)~Whorls + (1|Worm_ID), data=ctw.int)
-summary(ctw.cox.int)
-#random effect variance = 1.671 ... same as cox model with continuous data
-var(ranef(ctw.cox.int)$Worm_ID) # 1.42
+var <- VarCorr(ctw.cox.int)$Worm_ID[[1]] # random effect variance = 0.81
+var/(var + pi^2/6) # 0.33
 
 
 ## PWE model
 # for the piecewise exponential model, we need a measure of the time-at-risk for the offset.
 ctw.int$tar = ctw.int$tstop - ctw.int$tstart
 interval = data.frame(unique(ctw.int$tstop))
-interval$interval = factor(1:46)
+interval$interval = factor(1:94)
 colnames(interval)[1] = "tstop"
 ctw.int = merge(ctw.int, interval, by = "tstop", all = T)
 
@@ -218,11 +217,64 @@ ctw.pwe.fit = glmer(event ~ Whorls + interval + (1|Worm_ID), data=ctw.int,
 summary(ctw.pwe.fit)
 #random effect variance = 1.31
 
-
+## Discrete time glmm
 ctw.dtsm.fit = glmer(event ~ Whorls + interval + (1|Worm_ID), data=ctw.int,
                  family = binomial(link="cloglog"), nAGQ=7)
-#started 3:38pm; ended 
+#started 5:24pm; ended 6:07
 summary(ctw.dtsm.fit)
-#random effect variance = 1.67 ... same as cox model, but warnings it failed to converge
+#random effect variance = 0.78 ... but warnings it failed to converge
+
+
+ctw.dtsm.fit2 = glmer(event ~ Whorls + interval + (1|Worm_ID), data=ctw_int,
+                     family = binomial(link="cloglog"), nAGQ=7)
+#started 3:38pm; ended 
+summary(ctw.dtsm.fit2)
+#random effect variance = 0.87 ... same as cox model
+
+
+## quantile ctw intervals - where there are an equal number of events in each of 2 intervals
+cutpoints_q <- quantile(ctw$HT, probs = seq(0,1,0.25))
+#cutpoints_q <- cutpoints_q[-length(cutpoints_q)] # remove the last value
+
+ctw_int_q <- survSplit(Surv(HT, event) ~ Whorls + Trial_Total + Worm_ID,
+                            data = ctw,
+                            cut = c(14,20,33), 
+                            start = "tstart",
+                            end = "tstop")
+ctw_int_q$interval = NA
+ctw_int_q$interval =  ifelse(ctw_int_q$tstart == 0,1,ctw_int_q$interval)
+ctw_int_q$interval =  ifelse(ctw_int_q$tstart == 14,2,ctw_int_q$interval)
+ctw_int_q$interval =  ifelse(ctw_int_q$tstart == 20,3,ctw_int_q$interval)
+ctw_int_q$interval =  ifelse(ctw_int_q$tstart == 33,4,ctw_int_q$interval)
+ctw.dtsm.fit3 = glmer(event ~ Whorls + interval + (1|Worm_ID), data=ctw_int_q,
+                      family = binomial(link="cloglog"), nAGQ=7)
+VarCorr(ctw.dtsm.fit3)$Worm_ID[[1]]
+# 4 intervals random effect variance = 0.82 (2 intervals random effect variance = 0.59)
+
+##### Seed dispersal distance ####
+data<-read.csv(file="data_seed_pers.csv")
+pm<-subset(data, SPP=="PM") # only one species
+
+pmdistmov<-subset(pm,REMOVE==1) # distance the seed is dispersed, only looking at seeds that were removed from the feeding platform
+pmdistmov<-subset(pmdistmov, CONS!=1) # remove rows where the seed was consumed close by the feeding platform
+pmdistmov$RECOVERED..Y.N.[which(pmdistmov$DIST..MOVED==15)]<-"Y" # one row seems to indicate the cached seed was found 15m from the feeding platform, but the categorical variable for whether it was removed is an NA 
+
+table(pmdistmov$RECOVERED..Y.N.) # how many cached seeds did they recover (i.e., how much censored data is there?)
+# 35% of data are censored
+
+dist = pmdistmov[-which(pmdistmov$ID == "UNK"),c(1,5,6,14,17)] #simplify data frame
+
+# the Recovered column is analogous to the event variable in surivival analysis. Modify it to be an integer
+dist$event = ifelse(dist$RECOVERED..Y.N.== "Y",1,0)
+quantile(dist$DIST..MOVED, probs = seq(0,1,0.25),na.rm=T)
+
+psych::describe(dist$DIST..MOVED)
+dist$DIST..MOVED[which(is.na(dist$DIST..MOVED))]<-1038 # give ceiling value to NAs
+
+dist_int = survSplit(Surv(DIST..MOVED, event) ~ TRT + GRID + ID, data = dist, 
+                     cut = c(50,146,331.5), start = "tstart",end = "tstop")
+dist.cox.int = coxme(Surv(tstart,tstop, event) ~ 1 + (1|ID), data=dist_int)
+VarCorr(dist.cox.int)$ID[[1]] 
+# Random effect variance = 0.09
 
 

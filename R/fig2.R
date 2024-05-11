@@ -29,11 +29,24 @@ df_long <- tidyr::pivot_longer(df, c(ICCnp, ICC), names_to = "type", values_to =
 # Plot the data with a legend box inside the plot
 ggplot(df_long, aes(x = sigma2, y = value, color = type)) +
   geom_line() +
-  labs(x = "Variance", y = "Repeatablity") +
+  labs(#x = paste("Variance","(","sigma^2",")"), 
+       x = expression(paste("Variance (", sigma[alpha]^2, ")")) ,
+       y = "Repeatablity (intra-class correlation)",parse = TRUE) +
   scale_color_manual(values = c("blue", "red"), labels = c("ICC", "ICCnp")) +  
   ylim(0,1) +# Switched the labels
   theme_bw() +
-  theme(legend.position = c(0.8, 0.2))
+  theme(legend.position = c(0.85, 0.15))+
+  guides(color = guide_legend(title = NULL)) +
+  theme(
+    legend.background = element_rect(
+      colour = "black",  # Change the color of the box
+      fill = "white",  # Change the fill color of the box
+      size = 0.2,  # Change the size of the box border
+      linetype = "solid"  # Change the type of the line
+    )
+  )
+
+
 # plot the data showing a relationship 
 #between ICCnp and ICC not with sigma2 - also add 1:1 line (dotted line)
 # ICC as y and ICCnp as x

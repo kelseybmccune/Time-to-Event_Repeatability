@@ -18,23 +18,24 @@ library(coxme)
 coxme_pval <- function(model, data, boot = NULL) {
   # Get the original data
   
-  if(all(class(model) %in% c("coxme")) == FALSE) {stop("Sorry, you need to fit a metafor model of class coxme")}
+  if(all(class(model) %in% c("coxme")) == FALSE) {stop("Sorry, you need to fit a coxme model of class coxme")}
   
   # I think we need to use get the dimension of the data
 
   response <- as.data.frame(model$y[,1:2])
   
   fixed_formula <- as.formula(model$formulaList$fixed)
-
-  fit <- coxph(as.formula(fixed_formula), data = data)
+  
+  # fit the model without any random effects
+  fit <- survival::coxph(as.formula(fixed_formula), data = data)
   # loglikelihood ratio test
   # this is p value of effect of taking all random effects
   pval<- anova(fit, model)$P[-1]
   names(pval) <- "liklihood_ratio_test"
   
   if(!is.null(boot)){
-  # recreating the original formula
-  # we need to use replicate to create many vectors of these
+  
+  # we need to use replicate to create many vectors of these - randomize the data
   orders <- replicate(boot, sample(1:nrow(response)))  
   
   fixed_formula <- as.character(fixed_formula)  
@@ -73,7 +74,8 @@ coxme_pval <- function(model, data, boot = NULL) {
    Sys.sleep(1 / boot)
 
     }
-
+   
+  # getting the p value
    pval2 <- sapply(1:num, function(x) {
      sum(store[x,] > summary(model)$random$variance[x])/boot}
      )
@@ -122,10 +124,10 @@ coxme_pval(model, dat, boot = 1000)
 
 coxme_icc_ci <- function(model, upper.multiplier = 10) {
   if(all(class(model) %in% c("coxme")) == FALSE)
-    {stop("Sorry, you need to fit a metafor model of class coxme")} 
+    {stop("Sorry, you need to fit a coxme model of class coxme")} 
   if(any(length(summary(model)$random$variance) > 1)) {stop("Sorry. At the moment, we can only have a model with one random effect.")}
   
-  # Define a sequence of variance values
+  # Define a sequence of variance values``
   # the length of the response
   n <- nrow(model$y)
   cut = 100

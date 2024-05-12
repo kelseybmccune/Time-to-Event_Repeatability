@@ -114,11 +114,13 @@ coxme_pval(model, dat, boot = 1000)
 
 #' @title coxme_icc_ci
 #' @description This function calculates the 95 percent confidence interval for the intraclass correlation from the `coxme` objects.
+#' @param model A coxme model object
+#' @param upper.multiplier The multiplier for the upper bound of the confidence interval. Default is 10 (adjust to a higer value if the upper bound is not reached).
 #' @return A vector of the lower, point estimate, and upper bounds of the 95 percent confidence interval for the intraclass correlation
 #' @author Shinichi Nakagawa - s.nakagawa@unsw.edu.au
 #' @author etc
 
-coxme_icc_ci <- function(model) {
+coxme_icc_ci <- function(model, upper.multiplier = 10) {
   if(all(class(model) %in% c("coxme")) == FALSE)
     {stop("Sorry, you need to fit a metafor model of class coxme")} 
   if(any(length(summary(model)$random$variance) > 1)) {stop("Sorry. At the moment, we can only have a model with one random effect.")}
@@ -131,15 +133,16 @@ coxme_icc_ci <- function(model) {
   var_point <- summary(model)$random$variance
   
   # based on this pdf: https://cran.r-project.org/web/packages/coxme/vignettes/coxme.pdf
-  # this only works when upper confidence interval is 
-  #less than twice the same of the point estiamte
-  estvar <- seq(0.000001, var_point + var_point - 0.000001, length = cut)
+  # upper CI is limited to var_point*(10*log(n)) - so this could fail
+  estvar1 <- seq(0.000001, var_point, length = cut)
+  estvar2 <- seq(var_point, var_point*(upper.multiplier*log(n)), length = cut+1)[-1]
+  estvar <- c(estvar1, estvar2)
   
   # Initialize a vector to store the log-likelihood values
   loglik <- double(cut)
   
   # Loop over the variance values
-  for (i in seq_len(cut)) {
+  for (i in seq_len(cut*2)) {
     # Fit a coxme model with fixed variance
     tfit <- update(model, vfixed = estvar[i])
     
@@ -152,8 +155,8 @@ coxme_icc_ci <- function(model) {
   
   # Find the variance values that correspond to the threshold
   # getting lower and upper CI using profile likelihood
-  lower <- approx(temp[1:(cut/2)], sqrt(estvar[1:(cut/2)]), qchisq(.95, 1))$y
-  upper <- approx(temp[(cut/2 + 1):cut], sqrt(estvar[(cut/2 + 1):cut]), qchisq(.95, 1))$y
+  lower <- approx(temp[1:(cut)], sqrt(estvar[1:(cut)]), qchisq(.95, 1))$y
+  upper <- approx(temp[(cut + 1):(2*cut)], sqrt(estvar[(cut + 1):(2*cut)]), qchisq(.95, 1))$y
   
   # Return the 95% confidence interval
   ICC_lower <- lower^2 / (lower^2 + pi^2 / 6)

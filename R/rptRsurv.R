@@ -2,56 +2,127 @@
 
 library(coxme)
 
+# we need an example data to create a function
+dat <- read.csv(here("data","CTWemergence.csv"))
+# "HT" variable indicates hiding time, or the latency to emerge; "Whorls" is a visual indicator of age
+# 30 worms received 4 trials per day, across 4 days for a total of 16 trials. 
+
+# 2 individuals have NA values, but it is not explained why. I'll assume these are censored (the worm didn't emerge in the trial time)
+dat$event = ifelse(is.na(dat$HT),0,1)
+dat$HT[which(is.na(dat$HT))]<- 375
+
+dat$obs <- 1:nrow(dat)
+#model <- coxme(Surv(HT, event)~ Whorls + (1|Worm_ID) + (1|obs), data=dat)
+model <-  coxme(Surv(HT, event)~ Whorls + (1|Worm_ID), data=dat)
 
 # Define the function
-permute_coxme <- function(model) {
+# missing values ignored
+
+coxme_pval <- function(model, data, boot = NULL) {
   # Get the original data
-  data <- model$data
   
-  # Randomize the response variable
-  response <- data[, c("time", "event")]
-  response <- response[sample(nrow(response)), ]
+  if(all(class(model) %in% c("coxme")) == FALSE) {stop("Sorry, you need to fit a metafor model of class coxme")}
   
-  # Update the data with the randomized response
-  data$time <- response$time
-  data$event <- response$event
+  # I think we need to use get the dimension of the data
+
+  response <- as.data.frame(model$y[,1:2])
   
-  # Fit a new coxme model with the randomized data
-  permuted_model <- coxme(Surv(time, event) ~ ., data = data, random = model$random)
+  fixed_formula <- as.formula(model$formulaList$fixed)
+
+  fit <- coxph(as.formula(fixed_formula), data = data)
+  # loglikelihood ratio test
+  pval<- anova(fit, model)$P[-1]
+  names(pval) <- "liklihood_ratio_test"
   
-  # Return the permuted model
-  return(permuted_model)
+  if(!is.null(boot)){
+  # recreating the original formula
+  # we need to use replicate to create many vectors of these
+  orders <- replicate(boot, sample(1:nrow(response)))  
+  
+  fixed_formula <- as.character(fixed_formula)  
+  random_formula <-  as.vector(as.character(model$formulaList$random))        
+  formula <- as.formula(paste("Surv(new_time, new_status)", 
+                           "~", 
+                           fixed_formula[3], 
+                           "+",
+                           paste(random_formula, collapse = "+")))
+  data2 <- data
+
+  # randomizaton/permutation tests
+  pb <- progress::progress_bar$new(total = boot,
+                                 format = "Bootstrapping [:bar] :percent ETA: :eta",
+                                 show_after = 0)
+
+  # loop
+  num <- length(summary(model)$random$variance)
+
+  store <- matrix(NA, nrow = num, ncol = boot)
+
+  # Loop over the number of bootstraps
+  for (i in 1:boot) {
+  # Permute the data
+
+  data2$new_time <- response$time[orders[ ,i]]
+  data2$new_status <- response$status[orders[ ,i]]
+
+  # Fit the original coxme model
+  temp  <- tryCatch(coxme(formula, data = data2))
+
+  # get variance component
+   store[ ,i] <- summary(temp)$random$variance
+
+   pb$tick()
+   Sys.sleep(1 / boot)
+
+    }
+
+   pval2 <- sapply(1:num, function(x) {
+     sum(store[x,] > summary(model)$random$variance[x])/boot}
+     )
+   
+   names(pval2) <- paste(rep("bootstrapped_pval", num), 1:num, sep = "_")
+  }
+
+  if(exists("pval2")) {
+    
+  res <- c(pval, pval2)
+  return(res)
+  
+  } else {
+  res <- pval
+  return(res)
+  }
+
 }
 
-
-# Fit the original coxme model
-model <- coxme(Surv(time, event) ~ ., data = my_data, random = ~ 1 | group)
-
-# Fit a coxme model with permuted data
-permuted_model <- permute_coxme(model)
-
-# Print the summary of the permuted model
-summary(permuted_model)
+# test
+coxme_pval(model, dat, boot = 1000)
 
 
-# Install the necessary packages if not already installed
-if (!require(coxme)) {
-  install.packages("coxme")
-}
+# description to add to the function
 
-# Load the necessary package
-library(coxme)
-
-# Define the function
-get_ci_coxme <- function(model, n = 100) {
+# Define the functionn using profile likelihood
+coxme_icc_ci <- function(model) {
+  if(all(class(model) %in% c("coxme")) == FALSE)
+    {stop("Sorry, you need to fit a metafor model of class coxme")} 
+  if(any(length(summary(model)$random$variance) > 1)) {stop("Sorry. At the moment, we can only have a model with one random effect.")}
+  
   # Define a sequence of variance values
-  estvar <- seq(0.01, 1, length = n)^2
+  # the length of the response
+  n <- nrow(model$y)
+  cut = 100
+  
+  var_point <- summary(model)$random$variance
+  
+  # this only works when upper confidence interval is 
+  #less than twice the same of the point estiamte
+  estvar <- seq(0.000001, var_point + var_point - 0.000001, length = cut)
   
   # Initialize a vector to store the log-likelihood values
-  loglik <- double(n)
+  loglik <- double(cut)
   
   # Loop over the variance values
-  for (i in seq_len(n)) {
+  for (i in seq_len(cut)) {
     # Fit a coxme model with fixed variance
     tfit <- update(model, vfixed = estvar[i])
     
@@ -60,21 +131,22 @@ get_ci_coxme <- function(model, n = 100) {
   }
   
   # Compute the threshold for the 95% confidence interval
-  threshold <- 2 * diff(model$loglik)[1] - qchisq(0.95, 1)
+  temp <-  as.numeric(2 * diff(model$loglik)[1]) - loglik
   
   # Find the variance values that correspond to the threshold
-  lower <- approx(loglik[1:(n/2)], sqrt(estvar[1:(n/2)]), threshold)$y
-  upper <- approx(loglik[(n/2 + 1):n], sqrt(estvar[(n/2 + 1):n]), threshold)$y
+  lower <- approx(temp[1:(cut/2)], sqrt(estvar[1:(cut/2)]), qchisq(.95, 1))$y
+  upper <- approx(temp[(cut/2 + 1):cut], sqrt(estvar[(cut/2 + 1):cut]), qchisq(.95, 1))$y
   
   # Return the 95% confidence interval
-  return(c(lower, upper))
+  ICC_lower <- lower^2 / (lower^2 + pi^2 / 6)
+  ICC_point <- var_point / (var_point + pi^2 / 6)
+  ICC_upper <- upper^2 / (upper^2 + pi^2 / 6)
+  names(ICC_lower) <- "lower"
+  names(ICC_point) <- "ICC"
+  names(ICC_upper) <- "upper"
+  
+  return(c(ICC_lower, ICC_point, ICC_upper))
 }
 
-# Fit the original coxme model
-model <- coxme(Surv(time, event) ~ . + (1 | group), data = my_data)
-
-# Compute the 95% confidence interval for the standard deviation of the random effect
-ci <- get_ci_coxme(model)
-
-# Print the confidence interval
-print(ci)
+# test
+coxme_icc_ci(model)

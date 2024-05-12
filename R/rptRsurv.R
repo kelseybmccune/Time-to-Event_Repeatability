@@ -2,21 +2,18 @@
 
 library(coxme)
 
-# we need an example data to create a function
-dat <- read.csv(here("data","CTWemergence.csv"))
-# "HT" variable indicates hiding time, or the latency to emerge; "Whorls" is a visual indicator of age
-# 30 worms received 4 trials per day, across 4 days for a total of 16 trials. 
-
-# 2 individuals have NA values, but it is not explained why. I'll assume these are censored (the worm didn't emerge in the trial time)
-dat$event = ifelse(is.na(dat$HT),0,1)
-dat$HT[which(is.na(dat$HT))]<- 375
-
-dat$obs <- 1:nrow(dat)
-#model <- coxme(Surv(HT, event)~ Whorls + (1|Worm_ID) + (1|obs), data=dat)
-model <-  coxme(Surv(HT, event)~ Whorls + (1|Worm_ID), data=dat)
 
 # Define the function
 # missing values ignored
+
+#' @title comxe_pval
+#' @description This function calculates the p-value of the effect of the random effect in a coxme model. It also provides the p-value of the effect of the random effect using a bootstrapped method.
+#' @param model A coxme model object
+#' @param data The original data used to fit the model
+#' @param boot Number of simulations to run to produce 95 percent confidence intervals for I2. Default is \code{NULL}, where only the point estimate is provided.
+#' @return A vector of p-values
+#' @author Shinichi Nakagawa - s.nakagawa@unsw.edu.au
+#' @author etc
 
 coxme_pval <- function(model, data, boot = NULL) {
   # Get the original data
@@ -96,13 +93,31 @@ coxme_pval <- function(model, data, boot = NULL) {
 
 }
 
+# example model
+
+# we need an example data to create a function
+dat <- read.csv(here("data","CTWemergence.csv"))
+# "HT" variable indicates hiding time, or the latency to emerge; "Whorls" is a visual indicator of age
+# 30 worms received 4 trials per day, across 4 days for a total of 16 trials. 
+
+# 2 individuals have NA values, but it is not explained why. I'll assume these are censored (the worm didn't emerge in the trial time)
+dat$event = ifelse(is.na(dat$HT),0,1)
+dat$HT[which(is.na(dat$HT))]<- 375
+
+dat$obs <- 1:nrow(dat)
+#model <- coxme(Surv(HT, event)~ Whorls + (1|Worm_ID) + (1|obs), data=dat)
+model <-  coxme(Surv(HT, event)~ Whorls + (1|Worm_ID), data=dat)
+
+
 # test
 coxme_pval(model, dat, boot = 1000)
 
+#' @title coxme_icc_ci
+#' @description This function calculates the 95 percent confidence interval for the intraclass correlation from the `coxme` objects.
+#' @return A vector of the lower, point estimate, and upper bounds of the 95 percent confidence interval for the intraclass correlation
+#' @author Shinichi Nakagawa - s.nakagawa@unsw.edu.au
+#' @author etc
 
-# description to add to the function
-
-# Define the functionn using profile likelihood
 coxme_icc_ci <- function(model) {
   if(all(class(model) %in% c("coxme")) == FALSE)
     {stop("Sorry, you need to fit a metafor model of class coxme")} 
@@ -115,6 +130,7 @@ coxme_icc_ci <- function(model) {
   
   var_point <- summary(model)$random$variance
   
+  # based on this pdf: https://cran.r-project.org/web/packages/coxme/vignettes/coxme.pdf
   # this only works when upper confidence interval is 
   #less than twice the same of the point estiamte
   estvar <- seq(0.000001, var_point + var_point - 0.000001, length = cut)
@@ -135,6 +151,7 @@ coxme_icc_ci <- function(model) {
   temp <-  as.numeric(2 * diff(model$loglik)[1]) - loglik
   
   # Find the variance values that correspond to the threshold
+  # getting lower and upper CI using profile likelihood
   lower <- approx(temp[1:(cut/2)], sqrt(estvar[1:(cut/2)]), qchisq(.95, 1))$y
   upper <- approx(temp[(cut/2 + 1):cut], sqrt(estvar[(cut/2 + 1):cut]), qchisq(.95, 1))$y
   

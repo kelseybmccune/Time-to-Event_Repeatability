@@ -31,6 +31,7 @@ coxme_pval <- function(model, data, boot = NULL) {
 
   fit <- coxph(as.formula(fixed_formula), data = data)
   # loglikelihood ratio test
+  # this is p value of effect of taking all random effects
   pval<- anova(fit, model)$P[-1]
   names(pval) <- "liklihood_ratio_test"
   

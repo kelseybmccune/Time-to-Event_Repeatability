@@ -1,7 +1,21 @@
 # script for getting ICC from the coxme object
 
 library(coxme)
+library(here)
+# example model
 
+# we need an example data to create a function
+dat <- read.csv(here("data","CTWemergence.csv"))
+# "HT" variable indicates hiding time, or the latency to emerge; "Whorls" is a visual indicator of age
+# 30 worms received 4 trials per day, across 4 days for a total of 16 trials. 
+
+# 2 individuals have NA values, but it is not explained why. I'll assume these are censored (the worm didn't emerge in the trial time)
+dat$event = ifelse(is.na(dat$HT),0,1)
+dat$HT[which(is.na(dat$HT))]<- 375
+
+dat$obs <- 1:nrow(dat)
+#model <- coxme(Surv(HT, event)~ Whorls + (1|Worm_ID) + (1|obs), data=dat)
+model <-  coxme(Surv(HT, event)~ Whorls + (1|Worm_ID), data=dat)
 
 # Define the function
 # missing values ignored
@@ -95,21 +109,6 @@ coxme_pval <- function(model, data, boot = NULL) {
 
 }
 
-# example model
-
-# we need an example data to create a function
-dat <- read.csv(here("data","CTWemergence.csv"))
-# "HT" variable indicates hiding time, or the latency to emerge; "Whorls" is a visual indicator of age
-# 30 worms received 4 trials per day, across 4 days for a total of 16 trials. 
-
-# 2 individuals have NA values, but it is not explained why. I'll assume these are censored (the worm didn't emerge in the trial time)
-dat$event = ifelse(is.na(dat$HT),0,1)
-dat$HT[which(is.na(dat$HT))]<- 375
-
-dat$obs <- 1:nrow(dat)
-#model <- coxme(Surv(HT, event)~ Whorls + (1|Worm_ID) + (1|obs), data=dat)
-model <-  coxme(Surv(HT, event)~ Whorls + (1|Worm_ID), data=dat)
-
 
 # test
 coxme_pval(model, dat, boot = 1000)
@@ -137,7 +136,7 @@ coxme_icc_ci <- function(model, upper.multiplier = 10) {
   # based on this pdf: https://cran.r-project.org/web/packages/coxme/vignettes/coxme.pdf
   # upper CI is limited to var_point*(10*log(n)) - so this could fail
   estvar1 <- seq(0.000001, var_point, length = cut)
-  estvar2 <- seq(var_point, var_point*(upper.multiplier*log(n)), length = cut+1)[-1]
+  estvar2 <- seq(var_point, var_point*upper.multiplier, length = cut+1)[-1]
   estvar <- c(estvar1, estvar2)
   
   # Initialize a vector to store the log-likelihood values

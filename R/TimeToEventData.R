@@ -17,7 +17,8 @@ summary(exp.po)
 exp.po.olre = glmer(round(LatencyFirstLand) ~ Condition + FlexGroup + (1|BirdID) + (1|olre), data = exp, family = "poisson")
 summary(exp.po.olre)
 
-
+coxme_pval(exp.su,exp,boot=1000)
+coxme_icc_ci(exp.su)
 
 ###### Mexican Jay problem-solving survival analysis #####
 #Latency to solve a door on a puzzle box
@@ -28,6 +29,8 @@ jsolv$olre = factor(1:68)
 
 solv.su = coxme(Surv(Time, Solve)~Treatment + (1|ID), data=jsolv)
 summary(solv.su)
+coxme_pval(solv.su,jsolv,boot = 1000)
+
 var(ranef(solv.su)$ID)
 
 solv.su.olre = coxme(Surv(Time, Solve)~Treatment + (1|ID) + (1|olre), data=jsolv)

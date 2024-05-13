@@ -135,7 +135,7 @@ coxme_icc_ci <- function(model, upper.multiplier = 10) {
   
   # based on this pdf: https://cran.r-project.org/web/packages/coxme/vignettes/coxme.pdf
   # upper CI is limited to var_point*(10*log(n)) - so this could fail
-  estvar1 <- seq(0.000001, var_point, length = cut)
+  estvar1 <- seq(0.00000000000001, var_point, length = cut)
   estvar2 <- seq(var_point, var_point*upper.multiplier, length = cut+1)[-1]
   estvar <- c(estvar1, estvar2)
   

@@ -273,9 +273,9 @@ dist$event = ifelse(is.na(dist$event),0,dist$event)
 dist$DIST..MOVED[which(is.na(dist$DIST..MOVED))]<-1038 # give ceiling value to NAs
 
 
-dist.cox = coxme(Surv(DIST..MOVED, event) ~ 1 + (1|ID), data=dist)
+dist.cox = coxme(Surv(DIST..MOVED, event) ~ 1 + (1|ID), data=dist) # can use "TRT" as a fixed effect
 summary(dist.cox)
 coxme_pval(dist.cox,dist,boot=100) # likelihood ratio test is NA because no fixed effects
-coxme_icc_ci(dist.cox) # lower bound of CI is NA because ICC is small (0.03)?
+coxme_icc_ci(dist.cox, upper.multiplier = 20) # lower bound of CI is NA because ICC is small (0.03)?
 
 

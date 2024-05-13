@@ -29,7 +29,8 @@ jsolv$olre = factor(1:68)
 
 solv.su = coxme(Surv(Time, Solve)~Treatment + (1|ID), data=jsolv)
 summary(solv.su)
-coxme_pval(solv.su,jsolv,boot = 1000)
+coxme_pval(solv.su,jsolv,boot = 100)
+coxme_icc_ci(solv.su)
 
 var(ranef(solv.su)$ID)
 
@@ -64,6 +65,8 @@ df.a = read.csv("MEJAintervalAttempts.csv")
 Attm.fit = coxme(Surv(Time1, Time2, Attm)~ observe + (1|ID), data=df.a)
 summary(Attm.fit)
 #random effect variance = 0.0004
+
+
 
 # What if the time scale is in minutes instead of seconds?
 df.a$newTime1 = df.a$Time1/60
@@ -255,29 +258,24 @@ VarCorr(ctw.dtsm.fit3)$Worm_ID[[1]]
 # 4 intervals random effect variance = 0.82 (2 intervals random effect variance = 0.59)
 
 ##### Seed dispersal distance ####
-data<-read.csv(file="data_seed_pers.csv")
+data<-read.csv("data_seed_pers.csv")
 pm<-subset(data, SPP=="PM") # only one species
 
 pmdistmov<-subset(pm,REMOVE==1) # distance the seed is dispersed, only looking at seeds that were removed from the feeding platform
 pmdistmov<-subset(pmdistmov, CONS!=1) # remove rows where the seed was consumed close by the feeding platform
 pmdistmov$RECOVERED..Y.N.[which(pmdistmov$DIST..MOVED==15)]<-"Y" # one row seems to indicate the cached seed was found 15m from the feeding platform, but the categorical variable for whether it was removed is an NA 
-
 table(pmdistmov$RECOVERED..Y.N.) # how many cached seeds did they recover (i.e., how much censored data is there?)
 # 35% of data are censored
-
 dist = pmdistmov[-which(pmdistmov$ID == "UNK"),c(1,5,6,14,17)] #simplify data frame
-
-# the Recovered column is analogous to the event variable in surivival analysis. Modify it to be an integer
+# the Recovered column is analogous to the event variable in survival analysis. Modify it to be an integer
 dist$event = ifelse(dist$RECOVERED..Y.N.== "Y",1,0)
-quantile(dist$DIST..MOVED, probs = seq(0,1,0.25),na.rm=T)
-
-psych::describe(dist$DIST..MOVED)
+dist$event = ifelse(is.na(dist$event),0,dist$event)
 dist$DIST..MOVED[which(is.na(dist$DIST..MOVED))]<-1038 # give ceiling value to NAs
 
-dist_int = survSplit(Surv(DIST..MOVED, event) ~ TRT + GRID + ID, data = dist, 
-                     cut = c(50,146,331.5), start = "tstart",end = "tstop")
-dist.cox.int = coxme(Surv(tstart,tstop, event) ~ 1 + (1|ID), data=dist_int)
-VarCorr(dist.cox.int)$ID[[1]] 
-# Random effect variance = 0.09
+
+dist.cox = coxme(Surv(DIST..MOVED, event) ~ 1 + (1|ID), data=dist)
+summary(dist.cox)
+coxme_pval(dist.cox,dist,boot=100) # likelihood ratio test is NA because no fixed effects
+coxme_icc_ci(dist.cox) # lower bound of CI is NA because ICC is small (0.03)?
 
 

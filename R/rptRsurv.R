@@ -161,6 +161,9 @@ coxme_icc_ci <- function(model, upper.multiplier = 10) {
   
   # Return the 95% confidence interval
   ICC_lower <- lower^2 / (lower^2 + pi^2 / 6)
+  if (is.na(ICC_lower)) {
+    ICC_lower <- 0
+  }
   ICC_point <- var_point / (var_point + pi^2 / 6)
   ICC_upper <- upper^2 / (upper^2 + pi^2 / 6)
   names(ICC_lower) <- "lower"

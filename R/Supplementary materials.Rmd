@@ -130,7 +130,7 @@ var/(var + pi^2/6) # 0.05
 ### Data and code for Case Study in manuscript
 
 ```{r Case Study, echo = F}
-###### Mexican Jay problem-solving survival analysis #####
+
 #Latency to solve a door on a puzzle box
 jsolv = read.csv("jaySolveData.csv")
 jsolv = jsolv[,c(2:6,9)]

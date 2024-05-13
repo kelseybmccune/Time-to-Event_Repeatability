@@ -28,9 +28,14 @@ colnames(jsolv)[6] = "Time"
 jsolv$olre = factor(1:68)
 
 solv.su = coxme(Surv(Time, Solve)~Treatment + (1|ID), data=jsolv)
-summary(solv.su)
+summary(solv.su) 
 coxme_pval(solv.su,jsolv,boot = 100)
-coxme_icc_ci(solv.su)
+coxme_icc_ci(solv.su) # adjusted ICC
+
+solv.su2 = coxme(Surv(Time,Solve) ~ 1 + (1|ID), data = jsolv)
+summary(solv.su2) 
+coxme_pval(solv.su2,jsolv,boot = 100)
+coxme_icc_ci(solv.su2) # unadjusted ICC
 
 var(ranef(solv.su)$ID)
 

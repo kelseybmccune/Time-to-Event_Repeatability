@@ -6,17 +6,33 @@
 library(pacman) # checks if package is installed, if not installs it
 p_load(survival, coxme, lme4, here, dplyr, purrr)
 
-# load function
+# load functions
 source("R/function.R")
 
-##### load sim conditions ----------------------------------------------
+# from: https://stackoverflow.com/a/24569739
+myTryCatch <- function(expr) {
+  warn <- err <- NULL
+  value <- withCallingHandlers(
+    tryCatch(expr, error=function(e) {
+      err <<- e
+      NULL
+    }), warning=function(w) {
+      warn <<- w
+      invokeRestart("muffleWarning")
+    })
+  list(value=value, warning=warn, error=err)
+}
+
+
+
+##### load sim conditions -----------------------------------------------------
 
 # load job array table
 tab <- read.csv("sim/job_array.csv")
 
 # get job number from pbs script
 job <- as.numeric(Sys.getenv("PBS_ARRAY_INDEX"))
-#job <- 391
+#job <- 436
 
 # get current job information
 name <- tab$name[tab$job_number == job] 
@@ -32,18 +48,19 @@ intervals <- tab$intervals[job]           # number of time intervals
 
 # set seed for reproducibility
 set.seed(seed)
-#set.seed(100)
 
 # number of repetitions per individual (cluster)
 repetitions <- n/n_clusters
 
 
-##### data generation  ----------------------------------------------
+
+
+##### data generation  --------------------------------------------------------
 
 # generate covariate (sex)
 sex <- rbinom(n, size = 1, prob = 0.5)[rep(1:n_clusters, each = repetitions)]
-# set true parameter value
-beta <- 2
+# set true beta parameter value
+beta <- 0.5
 
 # generate cluster id variable
 cluster <- rep(1:n_clusters, each = repetitions)
@@ -68,23 +85,9 @@ dat <- data.frame(observation = 1:n,
                   survival_time = survival_time,
                   event = event)
 
-#### get cut points for time intervals
-# based on intervals
-#cutpoints <- (1:intervals)*(max(dat$survival_time)/intervals)
-
-# based on quantiles 
+# get cut points for time intervals based on quantiles 
 cutpoints_q <- quantile(dat$survival_time, probs = seq(0, 1, length.out = intervals + 1))
 cutpoints_q <- cutpoints_q[-length(cutpoints_q)] # remove the last value
-
-
-#### create a data frame (exploded_dat)
-# exploded_dat <- survSplit(Surv(survival_time, event) ~ sex + cluster,
-#                           data = dat,
-#                           cut = cutpoints, 
-#                           start = "tstart",
-#                           end = "tstop",
-#                           zero=0,
-#                           id = "observation")
 
 #### create a data frame (exploded_dat)
 exploded_dat_q <- survSplit(Surv(survival_time, event) ~ sex + cluster,
@@ -96,45 +99,50 @@ exploded_dat_q <- survSplit(Surv(survival_time, event) ~ sex + cluster,
                             id = "observation")
 
 
-
 # add time interval
-#exploded_dat$t_interval <- as.factor(exploded_dat$tstart)
 exploded_dat_q$t_interval <- as.factor(exploded_dat_q$tstart)
 
-
 # save current environment R objects
-#save.image(paste0("results/dat/data_", job, ".RDATA"))
+save.image(paste0("results/data/simdat_", seed, ".RDATA"))
 
 
 
-##### modeling  --------------------------------------------------------
+##### modeling  -----------------------------------------------------------------------------------
 
 
 ###### coxme -------------
 # fit a Cox prop hazards model with a frailty term using the coxme package
-fit_coxme <- quietly(function(dat) {
-  coxme(Surv(survival_time, event) ~ sex + (1 | cluster), data = dat)
-})
+
+coxme_mod <- myTryCatch(coxme(Surv(survival_time, event) ~ sex + (1 | cluster), data = dat))
 
 # save output
-coxme_mod <- fit_coxme(dat)
-coxme_mod_res <- coxme_mod$result
-coxme_mod_errors <- coxme_mod$messages
-coxme_mod_warnings <- coxme_mod$warnings
+coxme_mod_res <- coxme_mod$value
+coxme_mod_errors <- coxme_mod$error$message
+coxme_mod_warnings <- coxme_mod$warning$message
 
-# get model estimates
-coxme_mod_res <- coxme_mod$result
-beta_coxme <- fixef(coxme_mod_res)
-var_coxme <- VarCorr(coxme_mod_res)$cluster[[1]]
-ICC_coxme <- fr.lognormal(k, s, var_coxme, what = "tau")
 
-# extract model estimates if there is no error or warning
-if (length(coxme_mod_warnings)==0 && length(coxme_mod_errors)==0) {
+# extract model estimates if there is no error 
+if (is.null(coxme_mod_errors)) {
+  
+  # get model estimates
+  beta_coxme <- fixef(coxme_mod_res)
+  var_coxme <- VarCorr(coxme_mod_res)$cluster[[1]]
+  ICC_coxme <- fr.lognormal(k, s, var_coxme, what = "tau")
+  # get RMSE for each estimate
+  beta_coxme_rmse <- beta - beta_coxme
+  var_coxme_rmse <- sigma2.f - var_coxme
+  # get error and warning messages to NA
   coxme_mod_errors <- NA
-  coxme_mod_warnings <- NA
-} else { # set to NA and save warning or error message
-  coxme_mod_errors <- ifelse(length(coxme_mod_errors)==0,NA, paste(coxme_mod_errors, collapse="; "))
-  coxme_mod_warnings <- ifelse(length(coxme_mod_warnings)==0,NA, paste(coxme_mod_warnings, collapse="; "))
+  coxme_mod_warnings <- ifelse(length(coxme_mod_warnings)==0, NA, paste(coxme_mod_warnings, collapse="; "))
+  
+# set to NA if there is an error message  
+} else { 
+  beta_coxme <- NA
+  var_coxme <- NA
+  ICC_coxme <- NA
+  beta_coxme_rmse <- NA
+  var_coxme_rmse <- NA
+  coxme_mod_warnings <- ifelse(length(coxme_mod_warnings)==0, NA, paste(coxme_mod_warnings, collapse="; "))
 }
 
 
@@ -142,28 +150,36 @@ if (length(coxme_mod_warnings)==0 && length(coxme_mod_errors)==0) {
 
 #### coxph1 (normal) -------------
 # fit a Cox prop hazards model with a frailty term using the survival package (assuming normal dist)
-fit_coxph1 <- quietly(function(dat) {
-  coxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gaussian"), dat)
-})
+
+coxph1_mod <- myTryCatch(coxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gaussian"), dat))
 
 # save output
-coxph1_mod <- fit_coxph1(dat)
-coxph1_mod_res <- coxph1_mod$result
-coxph1_mod_errors <- coxph1_mod$messages
-coxph1_mod_warnings <- coxph1_mod$warnings
+coxph1_mod_res <- coxph1_mod$value
+coxph1_mod_errors <- coxph1_mod$error$message
+coxph1_mod_warnings <- coxph1_mod$warning$message
 
-# get model estimates
-coxph1_mod_res <- coxph1_mod$result
-beta_coxph1 <- coxph1_mod_res$coefficients
-var_coxph_normal <- coxph1_mod_res$history$`frailty(cluster, distribution = "gaussian")`$theta
-ICC_coxph1 <- fr.lognormal(1, sigma2.f, var_coxph_normal, what = "tau")
 
-# check errors and warnings
-if (length(coxph1_mod_warnings)==0 && length(coxph1_mod_errors)==0) {
+# extract model estimates if there is no error 
+if (is.null(coxph1_mod_errors)) {
+  
+  # get model estimates
+  beta_coxph1 <- coxph1_mod_res$coefficients
+  var_coxph_normal <- coxph1_mod_res$history$`frailty(cluster, distribution = "gaussian")`$theta
+  ICC_coxph1 <- fr.lognormal(1, sigma2.f, var_coxph_normal, what = "tau")
+  # get RMSE for each estimate
+  beta_coxph1_rmse <- beta - beta_coxph1
+  var_coxph1_rmse <- sigma2.f - var_coxph_normal
+  # get error and warning messages to NA
   coxph1_mod_errors <- NA
-  coxph1_mod_warnings <- NA
-} else { # set to NA and save warning or error message
-  coxph1_mod_errors <- ifelse(length(coxph1_mod_errors)==0,NA, paste(coxph1_mod_errors, collapse="; "))
+  coxph1_mod_warnings <- ifelse(length(coxph1_mod_warnings)==0,NA, paste(coxph1_mod_warnings, collapse="; "))
+
+# set to NA if there is an error
+} else { 
+  beta_coxph1 <- NA
+  var_coxph_normal <- NA
+  ICC_coxph1 <- NA
+  beta_coxph1_rmse <- NA
+  var_coxph1_rmse <- NA
   coxph1_mod_warnings <- ifelse(length(coxph1_mod_warnings)==0,NA, paste(coxph1_mod_warnings, collapse="; "))
 }
 
@@ -173,29 +189,35 @@ if (length(coxph1_mod_warnings)==0 && length(coxph1_mod_errors)==0) {
 #### coxph2 (gamma) -------------
 # fit a Cox prop hazards model with a frailty term using the survival package (assuming gamma dist)
 
-fit_coxph2 <- quietly(function(dat) {
-  coxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gamma"), dat)
-})
+coxph2_mod <-  myTryCatch(coxph(Surv(survival_time, event) ~ sex + frailty(cluster, distribution="gamma"), dat))
 
 # save output
-coxph2_mod <- fit_coxph2(dat)
-coxph2_mod_res <- coxph2_mod$result
-coxph2_mod_errors <- coxph2_mod$messages
-coxph2_mod_warnings <- coxph2_mod$warnings
+coxph2_mod_res <- coxph2_mod$value
+coxph2_mod_errors <- coxph2_mod$error$message
+coxph2_mod_warnings <- coxph2_mod$warning$message
 
-# get model estimates
-coxph2_mod_res <- coxph2_mod$result
-beta_coxph2 <- coxph2_mod_res$coefficients
-var_coxph_gamma <- coxph2_mod_res$history$`frailty(cluster, distribution = "gamma")`$theta
-ICC_coxph2 <- var_coxph_gamma/(var_coxph_gamma + 2)
-
-# check errors or warnings
-if (length(coxph2_mod_warnings)==0 && length(coxph2_mod_errors)==0) {
+# extract model estimates if there is no error 
+if (is.null(coxph2_mod_errors)) {
+  
+  # get model estimates
+  beta_coxph2 <- coxph2_mod_res$coefficients
+  var_coxph_gamma <- coxph2_mod_res$history$`frailty(cluster, distribution = "gamma")`$theta
+  ICC_coxph2 <- var_coxph_gamma/(var_coxph_gamma + 2)
+  # get RMSE for each estimate
+  beta_coxph2_rmse <- beta - beta_coxph2
+  var_coxph2_rmse <- sigma2.f - var_coxph_gamma
+  # get error and warning messages
   coxph2_mod_errors <- NA
-  coxph2_mod_warnings <- NA
-} else { # set to NA and save warning or error message
-  coxph2_mod_errors <- ifelse(length(coxph2_mod_errors)==0,NA, paste(coxph2_mod_errors, collapse="; "))
-  coxph2_mod_warnings <- ifelse(length(coxph2_mod_warnings)==0,NA, paste(coxph2_mod_warnings, collapse="; "))
+  coxph2_mod_warnings <- ifelse(length(coxph2_mod_warnings)==0, NA, paste(coxph2_mod_warnings, collapse="; "))
+
+# set to NA if there is an error message  
+} else {
+  beta_coxph2 <- NA
+  var_coxph_gamma <- NA
+  ICC_coxph2 <- NA
+  beta_coxph2_rmse <- NA
+  var_coxph2_rmse <- NA
+  coxph2_mod_warnings <- ifelse(length(coxph2_mod_warnings)==0, NA, paste(coxph2_mod_warnings, collapse="; "))
 }
 
 
@@ -203,30 +225,38 @@ if (length(coxph2_mod_warnings)==0 && length(coxph2_mod_errors)==0) {
 
 #### glmm (binomial) -------------
 # fit a discrete-time survival model with a frailty term using the glmer function from the lme4 package
-fit_glmm <- quietly(function(dat) {
-  glmer(event ~ -1 + t_interval + sex + (1|cluster), 
-        data=exploded_dat_q, family=binomial(link="cloglog"))
-})
+
+glmm_mod <- myTryCatch(glmer(event ~ -1 + t_interval + sex + (1|cluster), 
+                             data=exploded_dat_q, family=binomial(link="cloglog")))
 
 # save output
-glmm_mod <- fit_glmm(dat)
-glmm_mod_res <- glmm_mod$result
-glmm_mod_errors <- glmm_mod$messages
-glmm_mod_warnings <- glmm_mod$warnings
+glmm_mod_res <- glmm_mod$value
+glmm_mod_errors <- glmm_mod$error$message
+glmm_mod_warnings <- glmm_mod$warning$message
 
-# get model estimates
-glmm_mod_res <- glmm_mod$result
-beta_glmm <- fixef(glmm_mod_res)["sex"]
-var_glmm <- VarCorr(glmm_mod_res)$cluster[[1]]
-ICC_glmm <- var_glmm/(var_glmm + pi^2/6)
 
-# extract model estimates if there is no error or warning
-if (length(glmm_mod_warnings)==0 && length(glmm_mod_errors)==0) {
+# extract model estimates if there is no error
+if (is.null(glmm_mod_errors)) {
+  
+  # get model estimates
+  beta_glmm <- fixef(glmm_mod_res)["sex"]
+  var_glmm <- VarCorr(glmm_mod_res)$cluster[[1]]
+  ICC_glmm <- var_glmm/(var_glmm + pi^2/6)
+  # get RMSE for each estimate
+  beta_glmm_rmse <- beta - beta_glmm
+  var_glmm_rmse <- sigma2.f - var_glmm
+  # get error and warning messages
   glmm_mod_errors <- NA
-  glmm_mod_warnings <- NA
-} else { # set to NA and save warning or error message
-  glmm_mod_errors <- ifelse(length(glmm_mod_errors)==0,NA,paste(glmm_mod_errors, collapse="; "))
-  glmm_mod_warnings <- ifelse(length(glmm_mod_warnings)==0,NA, paste(glmm_mod_warnings, collapse="; "))
+  glmm_mod_warnings <- ifelse(length(glmm_mod_warnings)==0, NA, paste(glmm_mod_warnings, collapse="; "))
+
+# set to NA if there is an error message  
+} else {
+  beta_glmm <- NA
+  var_glmm <- NA
+  ICC_glmm <- NA
+  beta_glmm_rmse <- NA
+  var_glmm_rmse <- NA
+  glmm_mod_warnings <- ifelse(length(glmm_mod_warnings)==0, NA, paste(glmm_mod_warnings, collapse="; "))
 }
 
 
@@ -239,6 +269,7 @@ res <- data.frame(name = rep(name, 4),
                   simseed_id = rep(seed, 4),
                   n = rep(n, 4),
                   n_clusters = rep(n_clusters, 4),
+                  beta = rep(beta, 4),
                   sigma2.f = rep(sigma2.f, 4),
                   censoring_prop = rep(censoring_prop, 4),
                   intervals = rep(intervals, 4),
@@ -250,10 +281,18 @@ res <- data.frame(name = rep(name, 4),
                                    var_coxph_normal,
                                    var_coxph_gamma,
                                    var_glmm),
+                  sigma2.f_rmse = c(var_coxme_rmse,
+                                    var_coxph1_rmse,
+                                    var_coxph2_rmse,
+                                    var_glmm_rmse),
                   beta_est = c(beta_coxme,
                                beta_coxph1,
                                beta_coxph2,
                                beta_glmm),
+                  beta_rmse = c(beta_coxme_rmse,
+                                beta_coxph1_rmse,
+                                beta_coxph2_rmse,
+                                beta_glmm_rmse),
                   ICC = c(ICC_coxme,
                           ICC_coxph1,
                           ICC_coxph2,
@@ -270,15 +309,3 @@ res <- data.frame(name = rep(name, 4),
 
 # save the output according to the job array:
 save(list = "res", file = paste0("results/raw/res_", job, ".RDATA"))
-
-# # fixed effects
-# fixef(coxme_fit)
-# fixef(glmm_fit)["sex"]
-# coxph_fit1$coefficients
-# coxph_fit2$coefficients
-# 
-# # ICC tau and glmmer
-# fr.lognormal(k,s,var_coxme, what = "tau")
-# fr.lognormal(k,s,var_coxph_normal, what = "tau")
-# var_glmm/(var_glmm + pi^2/6) # expected to be different
-# var_coxph_gamma/(var_coxph_gamma + 2)

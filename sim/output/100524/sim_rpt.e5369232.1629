@@ -1,0 +1,4 @@
+Error in optim(par = -0.446287102628419, fn = function (theta, varlist,  : 
+  non-finite finite-difference value [1]
+Calls: fit_coxme ... withCallingHandlers -> .f -> coxme -> coxme.fit -> do.call -> optim
+Execution halted

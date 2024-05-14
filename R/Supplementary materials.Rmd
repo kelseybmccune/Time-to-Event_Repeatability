@@ -9,29 +9,39 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Background
-In the paper, "" we describe how to quantify repeatability from time-to-event data. In this supplementary materials page we demonstrate the use of this method with real data in 3 worked examples. Secondly, we present the methods and results for a simulation study to illustrate the relationship among ICC (repeatability) values derived from 4 different models and residual variance estimators.
+In the manuscript, "Quantifying repeatability or inter-class correlation from time-to-event data: Towards a standardized approach" we describe a method to quantify repeatability from time-to-event data. In this supplementary materials page we demonstrate the use of this method with real data in 3 worked examples. We additionally provide the data and code used in the case study section of the manuscript. Lastly, we present the methods and results for a simulation study to illustrate the relationship among ICC (repeatability) values derived from 4 different models and residual variance estimators.
 
 ## Worked Examples
-Behavior data range widely in the number of individuals as well as the number of repeated measures on each individuals. Furthermore, the presence and amount of censored data can vary. We use openly available data to present 3 worked examples that 
+Behavior data range widely in the number of individuals as well as the number of repeated measures on each individual. Furthermore, the presence and amount of censored data can vary. We use openly available data to present 3 worked examples that span a range of sample sizes and amount of censoring.
 
 ### Example 1: Frog aggression towards a simulated intruder
-Our first example data set is from Peignier et al. 2022. They investigated whether *A. femoralis* frogs show repeatable aggressive behavior by measuring the latency of territorial males to approach a simulated intruder. There sample size included 51 males with 3.2 +/- 1.31 trials each. Censored data are present (6% of trials) because some males did not approach the simulated intruder. These data were given a ceiling value of 300 seconds (the longest trial time). The authors log-transformed this variable and used the Gaussian family in the rpt function (Stoffel et al. 2017).
+Our first example data set is from Peignier et al. 2022. They investigated whether *A. femoralis* frogs show repeatable aggressive behavior by measuring the latency of territorial males to approach a simulated intruder. There sample size included 51 males with 3.2 +/- 1.31 trials each. Censored data are present (6% of trials) because some males did not approach the simulated intruder. These individuals were given a ceiling value of 300 seconds (the longest trial time). The authors log-transformed this variable and used the Gaussian family in the rpt function (Stoffel et al. 2017).
+
+In this first worked example, we give a high level of detail on the methods and model types described in the paper. In the subsequent examples, we present the data and run the analysis showing fewer of the intermediary or alternative steps.
+
 ```{r E1 - load the data, echo=FALSE}
 library(coxme)
 library(survival)
+library(here)
 
 # Data from Peignier et al. 2022
-
-fdata = read.csv("Frog_personality.csv")
+fdata = read.csv(here("data", "Frog_personality.csv"))
 fdata = fdata[which(fdata$sex == "m"),c(1,2,9)] # Only males participated in the aggression test, we only need columns for ID, repetition and latency to approach the simulated intruder. Authors did not include fixed effects, so we won't either.
 fdata = fdata[!is.na(fdata$jump_s),] # Unclear what the NAs represent, but the authors remove these data, so we will too.
 fdata$event = ifelse(fdata$jump_s==300, 0,1) # Create event column that indicates whether the data were censored for that trial.
 
 head(fdata,20)
 ```
-This is a classic (un-exploded) format for animal personality data. However, to get the variance components for our time-to-event ICC equation, we need a data set that includes discrete time intervals. This is referred to as an "exploded" data set and we can use the function survSplit in the survival package (cite) to easily transform the data. 
 
-How to choose interval size... (fill in based on simulation results)
+This is a classic (un-exploded) format for animal personality data. We will first conduct a Cox proportional hazards model using the coxme package in R (Therneau, 2022). The coxme function is able to estimate multiple random effects, as well as random slopes. We included a random effect for individual identity as in Equation 3 of the main text, except that there are no fixed effects in this frog model. In this model specification, the response variable is a "survival" object that combines latency to jump ("jump_s") and the event indicator.
+```{r E1 - coxme continuous model, echo = F}
+c1 = coxme(Surv(jump_s,event)~1+(1|ID), data = fdata)
+
+var <- VarCorr(c1)$ID[[1]] # Random effect variance is 0.40
+```
+
+
+However, we need a data set that includes discrete time intervals to show the equivalence in time-to-event ICC values between Cox proportional hazards models and binomial GLMM. This is referred to as an "exploded" data set and we can use the function survSplit in the survival package (Therneau, 2024) to easily transform the data. How to choose interval size... (fill in based on simulation results)
 
 ```{r E1 - explode the data, echo=F}
 # decide on the intervals
@@ -43,22 +53,135 @@ fdata_int = survSplit(Surv(jump_s,event) ~ repetition+ID, data = fdata,
 head(fdata_int,20)
 ```
 
-Running the cox proportional hazards model
+Now we can compare the basic Cox model with the model using the exploded data set. The response variable is again a "survival" object, but now combines the start and stop time of the interval and the event indicator. 
+```{r E1 - coxme interval model, echo = F}
+c1_int = coxme(Surv(tstart,tstop,event)~1+(1|ID), data = fdata_int)
 
-```{r E1 - cox model and ICC calculation, echo = F}
-c1 = coxme(Surv(tstart,tstop,event)~1+(1|ID), data = fdata_int)
+var <- VarCorr(c1_int)$ID[[1]] # Random effect variance is 0.40
+```
 
-var <- VarCorr(c1)$ID[[1]]
-fr.lognormal(k,s,var,what = "tau")
+You can see that the variance estimate for the random effect is the same in both Cox models.
+
+We can now estimate the ICC using Equation 7 from the main text. Because of the equivalence of mixed-effects Cox models with binomial generalized linear mixed-effects models with the clog-log link (see below), Equation 7 uses the random effect variance from the Cox model and the binomial GLMM distribution-specific residual variance estimator. 
+```{r E1 - Parametric ICC calculation, echo = F}
 var/(var + pi^2/6)
 # 0.19
 # Original paper reports a repeatabiltiy of 0.24 (CI: 0.07-0.40)
 
 ```
+This yields an ICC value of 0.19.
+
+In Equation 5 of the main text we show the calculation for the non-parametric version of the ICC, Kendall's tau, which assumes a Gamma distribution of the random effect. Additionally, it is not feasible to estimate the non-parametric ICC when there are more than one random effect. We wrote a function to obtain the non-parametric ICC numerically:
+```{r E1 - Non-parametric ICC function, echo = F}
+# function obtained from
+# https://github.com/cran/parfm/blob/master/R/frailtydistros.R
+
+g <- function(w, k, s, sigma2) {
+  -k * w + exp(w) * s + w ^ 2 /  (2 * sigma2)
+}
+
+g1 <- function(w, k, s, sigma2) {
+  -k + exp(w) * s + w / sigma2
+}
+
+g2 <- function(w, k, s, sigma2) {
+  exp(w) * s + 1 / sigma2    
+} 
+
+Lapl <- Vectorize(function(s, k, sigma2) {
+  # Find wTilde = max(g(w)) so that g'(wTilde; k, s, theta) = 0
+  WARN <- getOption("warn")
+  options(warn = -1)
+  wTilde <- optimize(f = g, c(-1e10, 1e10), maximum = FALSE,
+                     k = k, s = s, sigma2 = sigma2)$minimum
+  options(warn = WARN)
+  
+  # Approximate the integral via Laplacian method
+  res <- (-1) ^ k * 
+    exp(-g(w = wTilde, k = k, s = s, sigma2 = sigma2)) /
+    sqrt(sigma2 * g2(w = wTilde, k = k, s = s, sigma2 = sigma2))
+  return(res)
+}, 's')
+
+intTau <- Vectorize(function(x, intTau.sigma2=sigma2) {
+  res <- x * 
+    Lapl(s = x, k = 0, sigma2 = intTau.sigma2) *
+    Lapl(s = x, k = 2, sigma2 = intTau.sigma2)
+  return(res)
+}, "x")
+
+fr.lognormal <- function(k,
+                         s,
+                         sigma2,
+                         what = "logLT") {
+  # if (!(is.numeric(sigma2) && (sigma2 > 0)))
+  # stop("The parameter sigma2 is not a positive value.")
+  
+  if (what == "logLT") {
+    # if (!(is.numeric(s) && (s > 0)))
+    #     stop("The parameter s is not positive.")
+    # Find wTilde = max(g(w)) so that g'(wTilde; k, s, theta) = 0
+    WARN <- getOption("warn")
+    options(warn = -1)
+    wTilde <- nlm(f = g, p = 0, k = k, s = s, sigma2 = sigma2)$estimate
+    options(warn = WARN)
+    
+    # Approximate the integral via Laplacian method
+    res <- -g(w = wTilde, k = k, s = s, sigma2 = sigma2) -
+      log(sigma2 * g2(w = wTilde, k = k, s = s, sigma2 = sigma2)
+      ) / 2
+    return(res)
+  }
+  else if (what == "tau") {
+    intTau <- Vectorize(function(x, intTau.sigma2=sigma2) {
+      res <- x * 
+        Lapl(s = x, k = 0, sigma2 = intTau.sigma2) *
+        Lapl(s = x, k = 2, sigma2 = intTau.sigma2)
+      return(res)
+    }, "x")
+    
+    tauRes <- 4 * integrate(
+      f = intTau, lower = 0, upper = Inf, 
+      intTau.sigma2 = sigma2)$value - 1
+    return(tauRes)
+  }
+}
+
+```
+
+```{r E1 - Non-parametric ICC estimate, echo=, warning=FALSE}
+fr.lognormal(k,s,var,what = "tau")
+```
+The non-parametric ICC estimate for these frog data is 0.16.
+
+We now demonstrate the use of the binomial GLMM to analyze the discrete time interval survival data. We use the interval data that we created above (fdata_int). However, we also need to include a column identifying the time interval to include as a fixed effect, which takes the place of the start and stop time from the Cox models.
+```{r E1 - binomial GLMM}
+# we previously told the survSplit function to create intervals every 50 seconds.
+# create column to identify intervals
+fdata_int$interval = NA
+fdata_int$interval =  ifelse(fdata_int$tstart == 0,1,fdata_int$interval)
+fdata_int$interval =  ifelse(fdata_int$tstart == 50,2,fdata_int$interval)
+fdata_int$interval =  ifelse(fdata_int$tstart == 100,3,fdata_int$interval)
+fdata_int$interval =  ifelse(fdata_int$tstart == 150,4,fdata_int$interval)
+fdata_int$interval =  ifelse(fdata_int$tstart == 200,5,fdata_int$interval)
+fdata_int$interval =  ifelse(fdata_int$tstart == 250,6,fdata_int$interval)
+
+# Run the binomial glmm model
+library(lme4)
+b1 <- glmer(event ~ as.factor(interval) + (1|ID), data=fdata_int,
+                 family = binomial(link="cloglog"), nAGQ=7)
+var <- b1@theta^2
+var/(var + pi^2/6)
+
+```
+The random effect variance from the binomial GLMM is 0.46, and the ICC value using Equation 7 is 0.22.
+
+
+What if we do not account for censored data? i.e., we eliminate trials where frogs did not respond to simulated intruder.
 
 
 ### Example 2: Christmas tree worm re-emergence after a simulated predator attack
-These data come from Pezner et al. 2017 https://academic.oup.com/beheco/article/28/1/154/2453511. They tested the consistency of hiding time (latency to re-emerge from the hole) within and across days, and the impact of social environment. They tested 30 worms, each received 4 trials within a day and 4 days of sampling for a total of 16 trials per worm. Censored data are not explicitly stated, but there are 5 NA values from 2 individuals that we here assume are censored data. The authors log-transformed the hiding time variable, used a linear mixed model to get variance estimates, then hand-calculated repeatability.
+These data come from Pezner et al. 2017 https://academic.oup.com/beheco/article/28/1/154/2453511. They tested the consistency of hiding time (latency to re-emerge from the hole) within and across days, and the impact of social environment. They tested 30 worms, each received 4 trials within a day and 4 days of sampling for a total of 16 trials per worm. Censored data are not explicitly stated, but there are 5 NA values from 2 individuals that we here assume are censored data (~1% of data). In the original paper, the authors log-transformed the hiding time variable, used a linear mixed model to get variance estimates, then hand-calculated repeatability.
 
 ```{r E2, echo=F}
 ## Load the data

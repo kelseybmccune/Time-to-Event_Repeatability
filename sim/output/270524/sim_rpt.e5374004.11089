@@ -1,0 +1,4 @@
+Error in integrate(f = intTau, lower = 0, upper = Inf, intTau.sigma2 = sigma2) : 
+  extremely bad integrand behaviour
+Calls: fr.lognormal -> integrate
+Execution halted

@@ -40,11 +40,11 @@ scen <- tab$scenario[tab$job_number == job]
 seed <- tab$sim[tab$job_number == job]
 
 # load parameter conditions for current job
-n <- tab$n[job]                           # the number of observations
-n_clusters <- tab$n_clusters[job]         # the number of individuals (cluster)
-sigma2.f <- tab$sigma2.f[job]             # variance of frailty random effect
-censoring_prop <- tab$censoring_prop[job] # proportion of censored data
-intervals <- tab$intervals[job]           # number of time intervals
+n <- tab$n[tab$job_number == job]                           # the number of observations
+n_clusters <- tab$n_clusters[tab$job_number == job]         # the number of individuals (cluster)
+sigma2.f <- tab$sigma2.f[tab$job_number == job]             # variance of frailty random effect
+censoring_prop <- tab$censoring_prop[tab$job_number == job] # proportion of censored data
+intervals <- tab$intervals[tab$job_number == job]           # number of time intervals
 
 # set seed for reproducibility
 set.seed(seed)

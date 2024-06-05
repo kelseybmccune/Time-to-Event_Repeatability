@@ -1,87 +1,6 @@
-##############################################
-# Combine simulation results (on HPC/katana) #
-##############################################
-
-home.wd <- "/srv/scratch/z5394590/survival_repeatability/"
-
-# initialise the result storage
-results <- NULL
-
-# change into appropriate result folder
-setwd(paste(home.wd, "results/raw", sep = "/"))
-
-# get a list of all the individual result files
-res.list <- list.files()[grepl("res_", list.files(), fixed = T)]
-
-# inner loop through individual sim-by-model files
-for (job in res.list) {
-  # get the job number
-  job.no <- as.numeric(unlist(lapply(strsplit(unlist(lapply(strsplit(job, ".", fixed = T), function(x){x[1]})), "_", fixed = T), function(x){x[length(x)]})))
-  # load in the individual simulation results
-  load(job)
-  # rbind to results data frame
-  results <- rbind(results, res)
-  # remove the current results to ensure no duplicates
-  rm(res)
-}
-
-
-# save the single result data frame within the results folder
-setwd(home.wd)
-save(list = "results", file = "collated_sim_results.RDATA")
-
-
-
-##### Combine all RDATA file of dataframes into one list
-
-# define the directory containing the Rdata files
-folder_path <- "sim/output/data"
-
-# get a list of all Rdata files in the folder
-rdata_files <- list.files(folder_path, pattern = "simdat_\\d+\\.RDATA", full.names = T)
-
-# initialise empty lists to store the data frames
-dat_list <- list()
-exploded_dat_q_list <- list()
-
-# loop through each Rdata file and load the data frames and combine into lists
-for (file in rdata_files) {
-  load(file)
-  if (exists("dat")) {
-    dat_list[[file]] <- dat
-  }
-  if (exists("exploded_dat_q")) {
-    exploded_dat_q_list[[file]] <- exploded_dat_q
-  }
-}
-
-# Save the lists of data frames into a single Rdata file
-save(dat_list, exploded_dat_q_list, file = "collated_sim_data.RDATA")
-
-
-
-
 ################
 # Plot results #
 ################
-
-load("sim/output/140524/collated_sim_results_subsets.RDATA")
-
-# get job_number in scen.tab for results based on  scenario and simseed.id in the results dataset
-scen <- scen.tab %>%
-  select(scenario,
-         simseed_id=sim,
-         job_number)
-
-t <- merge(results, scen, by=c("simseed_id", "scenario"))
-
-
-# check which sequences of sim datasets have missing numbers
-sequence <- 1:12000
-setdiff(sequence, t$job_number)
-
-# 5089 11089
-
 
 # load libraries
 library(ggplot2)
@@ -93,6 +12,22 @@ library(ggdist)  # for half-eye plots
 library(gridExtra)
 library(ggsave)
 
+
+# get results from all sims
+load("sim/output/collated_sim_results.RDATA")
+
+# # get job_number in scen.tab for results based on  scenario and simseed.id in the results dataset
+# scen <- scen.tab %>%
+#   select(scenario,
+#          simseed_id=sim,
+#          job_number)
+# 
+# t <- merge(results, scen, by=c("simseed_id", "scenario"))
+# 
+# # check which sequences of sim datasets have missing numbers
+# sequence <- 1:12000
+# setdiff(sequence, t$job_number)
+# # 5089 11089 iterations did not run 
 
 
 
@@ -123,43 +58,77 @@ plot_res <- function(res, variable_to_plot, name="res", save=TRUE) {
     theme_bw() 
   if (save) {
     filename <- sprintf("sim/output/%s_%s.png", name, variable_to_plot)
-    ggsave(filename, plot = gg, width = 8, height = 5)
+    ggsave(filename, plot = gg, width = 8, height = 6)
   }
   return(gg)
 }
 
 
+
+
+
+
 ################################################################################
 
-# filter by censoring prop and interval split
+##### int2_cens0
+# remove all model results if at least one model did not converge without warnings or errors
 results_int2_cens0 <- results %>%
+  group_by(simseed_id, scenario) %>%
+  mutate(nowarnings = sum(is.na(model_warnings))) %>%
+  filter(nowarnings == 4) %>%
   filter(censoring_prop==0, intervals==2)
 
 
-# filter all simseed.id without at least one model_warnings
-results_int2_cens0 <- results_int2_cens0 %>%
-  group_by(simseed_id, sigma2.f) %>%
-  mutate(nowarnings = sum(is.na(model_warnings))) %>%
-  filter(nowarnings == 4)
-
-
-# Save each plot of performance measure using par(mfrow=c(1,3))
-par(mfrow=c(1,3))
+# Save each plot 
 plot_res(results_int2_cens0, "beta_est", name="beta_est_int2_cens0")
 plot_res(results_int2_cens0, "sigma2.f_est", name="sigma2_est_int2_cens0")
 plot_res(results_int2_cens0, "ICC", name="ICC_est_int2_cens0")
 
 
+##### int4_cens0
 # filter by censoring prop and interval split
 results_int4_cens0 <- results %>%
+  group_by(simseed_id, scenario) %>%
+  mutate(nowarnings = sum(is.na(model_warnings))) %>%
+  filter(nowarnings == 4) %>%
   filter(censoring_prop==0, intervals==4)
 
 
-# Save each plot of performance measure using par(mfrow=c(1,3))
+# Save each plot 
 plot_res(results_int4_cens0, "beta_est", name="beta_est_int4_cens0")
 plot_res(results_int4_cens0, "sigma2.f_est", name="sigma2_est_int4_cens0")
 plot_res(results_int4_cens0, "ICC", name="ICC_est_int4_cens0")
 
+
+
+##### int2_cens15
+# filter by censoring prop and interval split
+results_int2_cens15 <- results %>%
+  group_by(simseed_id, scenario) %>%
+  mutate(nowarnings = sum(is.na(model_warnings))) %>%
+  filter(nowarnings == 4) %>%
+  filter(censoring_prop==0.15, intervals==2)
+
+
+# Save each plot
+plot_res(results_int2_cens15, "beta_est", name="beta_est_int2_cens15")
+plot_res(results_int2_cens15, "sigma2.f_est", name="sigma2_est_int2_cens15")
+plot_res(results_int2_cens15, "ICC", name="ICC_est_int2_cens15")
+
+
+##### int4_cens15
+# filter by censoring prop and interval split
+results_int4_cens15 <- results %>%
+  group_by(simseed_id, scenario) %>%
+  mutate(nowarnings = sum(is.na(model_warnings))) %>%
+  filter(nowarnings == 4) %>%
+  filter(censoring_prop==0.15, intervals==4)
+
+
+# Save each plot 
+plot_res(results_int4_cens15, "beta_est", name="beta_est_int4_cens15")
+plot_res(results_int4_cens15, "sigma2.f_est", name="sigma2_est_int4_cens15")
+plot_res(results_int4_cens15, "ICC", name="ICC_est_int4_cens15")
 
 
 
@@ -170,8 +139,11 @@ plot_res(results_int4_cens0, "ICC", name="ICC_est_int4_cens0")
 
 # get data for each scenario 1
 results_scen1 <- results %>%
+  group_by(simseed_id, scenario) %>%
+  mutate(nowarnings = sum(is.na(model_warnings))) %>%
+  filter(nowarnings == 4) %>%
   filter(scenario==1)
-  
+
 # Save each plot of performance measure
 plot_res(results_scen1 , "beta_est", name="scen1")
 plot_res(results_scen1 , "sigma2.f_est", name="scen1")
@@ -179,6 +151,9 @@ plot_res(results_scen1 , "ICC", name="scen1")
 
 # get data for each scenario 2
 results_scen2 <- results %>%
+  group_by(simseed_id, scenario) %>%
+  mutate(nowarnings = sum(is.na(model_warnings))) %>%
+  filter(nowarnings == 4) %>%
   filter(scenario==2)
 
 # Save each plot of performance measure
@@ -187,11 +162,29 @@ plot_res(results_scen2 , "sigma2.f_est", name="scen2")
 plot_res(results_scen2 , "ICC", name="scen2")
 
 
+# get data for each scenario 3
+results_scen3 <- results %>%
+  group_by(simseed_id, scenario) %>%
+  mutate(nowarnings = sum(is.na(model_warnings))) %>%
+  filter(nowarnings == 4) %>%
+  filter(scenario==3)
 
+# Save each plot of performance measure
+plot_res(results_scen3 , "beta_est", name="scen3")
+plot_res(results_scen3 , "sigma2.f_est", name="scen3")
+plot_res(results_scen3 , "ICC", name="scen3")
 
+# get data for each scenario 4
+results_scen4 <- results %>%
+  group_by(simseed_id, scenario) %>%
+  mutate(nowarnings = sum(is.na(model_warnings))) %>%
+  filter(nowarnings == 4) %>%
+  filter(scenario==4)
 
-
-
+# Save each plot of performance measure
+plot_res(results_scen4 , "beta_est", name="scen4")
+plot_res(results_scen4 , "sigma2.f_est", name="scen4")
+plot_res(results_scen4 , "ICC", name="scen4")
 
 
 

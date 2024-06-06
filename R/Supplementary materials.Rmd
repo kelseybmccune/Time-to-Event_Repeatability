@@ -272,7 +272,26 @@ coxme_icc_ci(solv.su2) # unadjusted ICC
 
 ```
 
-## Simulations
+## Simulations (draft)
+
+We conducted a small simulation study to examine the relationship of model estimates and ICC values derived from four different models: (1) a Cox proportional hazards model with a normal distribution of the random effect using `coxme` function in the `coxme` package, (2) a Cox proportional hazards model with a normal distribution of the random effect using `coxph` from the `survival` package, (3) a Cox proportional hazards model with a gamma distribution of the random effect using using `coxph` from the `survival` package, and (4) a binomial generalized linear mixed-effects model with a clog-log link using the `glmer` function from the `lme4` package. 
+
+We simulated survival data for $n=1000$ observations and $n_{cluster}=100$ the number of clusters (to be $n_{cluster}=10$ (i.e. individuals). We simulated data given three different values for the random effect variance $\sigma^2_{\alpha}=1, 2, 3$ (frailty variance), two levels of censoring $c= 0, 0.15$ and two time interval splitting numbers $int\_n = (2, 4)$. We assumed a model with a single covariate (sex) as described in equation (xxx) in the main text. We set the true value of the covariate beta parameter to be $\beta_{sex}=0.5$.
 
 
+A total of 1($n$) $\times$ 1($n_{cluster}$) $\times$ 3($\sigma^2_{f}$) $\times$ 2(censoring) $\times$ 2(interval) $=$ 12 conditions were examined. For each of these conditions, we simulated 1000 data sets and 1000 corresponding 'exploded' data sets.
 
+The simulation study was conducted with R (R Core Team, 2024) and using the computational cluster Katana at UNSW Sydney (UNSW, 2024). 
+
+
+## References
+
+Bates, D., Maechler, M., Bolker, B., & Walker, S. (2015). Fitting linear mixed-effects models using lme4. *Journal of Statistical Software, 67*(1), 1-48. <https://doi.org/10.18637/jss.v067.i01>
+
+R Core Team. (2024). *R: A language and environment for statistical computing*. R Foundation for Statistical Computing. <https://www.R-project.org/>
+
+Therneau, T. M. (2024). *A package for survival analysis in R* (R package version 3.5-8). <https://CRAN.R-project.org/package=survival>
+
+Therneau, T. M. (2024). *coxme: Mixed effects Cox models* (R package version 2.2-20). <https://CRAN.R-project.org/package=coxme>
+
+Therneau, T. M., & Grambsch, P. M. (2000). *Modeling survival data: Extending the Cox model*. Springer. ISBN 0-387-98784-3

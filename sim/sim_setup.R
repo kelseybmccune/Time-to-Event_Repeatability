@@ -6,10 +6,10 @@ name <- "test"
 
 #### model parameters
 n <- c(1000)                    # number of observations
-n_clusters <- c(100)       # number of individuals (cluster)
-sigma2.f <- c(1, 2, 3)             # variance of frailty random effect (removed 0.5 for now)
-censoring_prop <-  c(0, 0.15)  # proportion of censored data
-intervals <- c(2,4)           # number of time intervals
+n_clusters <- c(100)            # number of individuals (cluster)
+sigma2.f <- c(1, 2, 3)          # variance of frailty random effect (removed 0.5 for now)
+censoring_prop <-  c(0, 0.15)   # proportion of censored data
+intervals <- c(2,4)             # number of time intervals
 
 # number of replications per scenario
 repl <- 1000

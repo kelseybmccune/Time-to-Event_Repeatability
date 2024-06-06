@@ -11,6 +11,7 @@ library(ggplot2)
 library(ggdist)  # for half-eye plots
 library(gridExtra)
 library(ggsave)
+library(patchwork)
 
 
 # get results from all sims
@@ -51,140 +52,76 @@ plot_res <- function(res, variable_to_plot, name="res", save=TRUE) {
     scale_color_manual(values=c("#CE72DD", "#FECA91", "#73B496", "#8C7CBB")) +
     scale_fill_manual(values=alpha(c("#CE72DD", "#FECA91", "#73B496", "#8C7CBB"), 0.4)) + 
     labs(title=sprintf("Plot of %s", variable_to_plot),x="model",y=variable_to_plot) +
-    facet_wrap(~sigma2.f, labeller=labeller(sigma2.f =
-                                              c("1" = "sigma2.f = 1",
-                                                "2" = "sigma2.f = 2",
-                                                "3" = "sigma2.f = 3"))) +
-    theme_bw() 
-  if (save) {
-    filename <- sprintf("sim/output/%s_%s.png", name, variable_to_plot)
-    ggsave(filename, plot = gg, width = 8, height = 6)
-  }
+    #facet_wrap(~sigma2.f, labeller=labeller(sigma2.f =
+    #                                          c("1" = "sigma2.f = 1",
+    #                                            "2" = "sigma2.f = 2",
+    #                                            "3" = "sigma2.f = 3"))) +
+    theme_bw()+
+    theme(legend.position="none")
+  
+  # Add number of observations per model
+  gg <- gg + geom_text(data = res %>% group_by(model) %>% summarise(count = n()), 
+                       aes(label = paste0("n = ", count), y = Inf), vjust = 1.5, color = "black")
+    
+  # if (save) {
+  #   filename <- sprintf("sim/output/plots/%s_%s.png", name, variable_to_plot)
+  #   ggsave(filename, plot = gg, width = 7, height = 5)
+  # }
   return(gg)
 }
 
 
+################################################################################
 
-
+# Function to get data for each scenario ---------------
+get_scenario_data <- function(results, scenario_num) {
+  results %>%
+    group_by(simseed_id, scenario) %>%
+    mutate(nowarnings = sum(is.na(model_warnings))) %>% ## remove observations if at least one model had a warning 
+    filter(nowarnings == 4) %>%
+    filter(scenario == scenario_num)
+}
 
 
 ################################################################################
 
-##### int2_cens0
-# remove all model results if at least one model did not converge without warnings or errors
-results_int2_cens0 <- results %>%
-  group_by(simseed_id, scenario) %>%
-  mutate(nowarnings = sum(is.na(model_warnings))) %>%
-  filter(nowarnings == 4) %>%
-  filter(censoring_prop==0, intervals==2)
+# get labels for each scenario and variable (for plot title)
+scenario_labels <- c("Interval = 2, Censoring = 0, sigma2.f = 1",
+                     "Interval = 2, Censoring = 0, sigma2.f = 2",
+                     "Interval = 2, Censoring = 0, sigma2.f = 3",
+                     "Interval = 2, Censoring = 0.15, sigma2.f = 1",
+                     "Interval = 2, Censoring = 0.15, sigma2.f = 2",
+                     "Interval = 2, Censoring = 0.15, sigma2.f = 3",
+                     "Interval = 4, Censoring = 0, sigma2.f = 1",
+                     "Interval = 4, Censoring = 0, sigma2.f = 2",
+                     "Interval = 4, Censoring = 0, sigma2.f = 3",
+                     "Interval = 4, Censoring = 0.15, sigma2.f = 1",
+                     "Interval = 4, Censoring = 0.15, sigma2.f = 2",
+                     "Interval = 4, Censoring = 0.15, sigma2.f = 3")
 
 
-# Save each plot 
-plot_res(results_int2_cens0, "beta_est", name="beta_est_int2_cens0")
-plot_res(results_int2_cens0, "sigma2.f_est", name="sigma2_est_int2_cens0")
-plot_res(results_int2_cens0, "ICC", name="ICC_est_int2_cens0")
+# generate plot for each scenario and performance measure
+for (scenario_num in 1:12) {
+  results_scen <- get_scenario_data(results, scenario_num)
+  
+  beta_plot <- plot_res(results_scen, "beta_est")
+  sigma2_plot <- plot_res(results_scen, "sigma2.f_est")
+  ICC_plot <- plot_res(results_scen, "ICC")
+  
+  final_plot <- (beta_plot | sigma2_plot | ICC_plot) + 
+    plot_layout(ncol = 3) + 
+    plot_annotation(
+      title = sprintf("%s (Scenario %d)", scenario_labels[scenario_num], scenario_num),
+      theme = theme(plot.title = element_text(hjust = 0.5))
+    )
+  
+  filename <- sprintf("sim/output/plots/plot_scenario_%d.png", scenario_num)
+  ggsave(filename, plot = final_plot, width = 12, height = 6)
+  
+  print(final_plot)
+}
 
 
-##### int4_cens0
-# filter by censoring prop and interval split
-results_int4_cens0 <- results %>%
-  group_by(simseed_id, scenario) %>%
-  mutate(nowarnings = sum(is.na(model_warnings))) %>%
-  filter(nowarnings == 4) %>%
-  filter(censoring_prop==0, intervals==4)
-
-
-# Save each plot 
-plot_res(results_int4_cens0, "beta_est", name="beta_est_int4_cens0")
-plot_res(results_int4_cens0, "sigma2.f_est", name="sigma2_est_int4_cens0")
-plot_res(results_int4_cens0, "ICC", name="ICC_est_int4_cens0")
-
-
-
-##### int2_cens15
-# filter by censoring prop and interval split
-results_int2_cens15 <- results %>%
-  group_by(simseed_id, scenario) %>%
-  mutate(nowarnings = sum(is.na(model_warnings))) %>%
-  filter(nowarnings == 4) %>%
-  filter(censoring_prop==0.15, intervals==2)
-
-
-# Save each plot
-plot_res(results_int2_cens15, "beta_est", name="beta_est_int2_cens15")
-plot_res(results_int2_cens15, "sigma2.f_est", name="sigma2_est_int2_cens15")
-plot_res(results_int2_cens15, "ICC", name="ICC_est_int2_cens15")
-
-
-##### int4_cens15
-# filter by censoring prop and interval split
-results_int4_cens15 <- results %>%
-  group_by(simseed_id, scenario) %>%
-  mutate(nowarnings = sum(is.na(model_warnings))) %>%
-  filter(nowarnings == 4) %>%
-  filter(censoring_prop==0.15, intervals==4)
-
-
-# Save each plot 
-plot_res(results_int4_cens15, "beta_est", name="beta_est_int4_cens15")
-plot_res(results_int4_cens15, "sigma2.f_est", name="sigma2_est_int4_cens15")
-plot_res(results_int4_cens15, "ICC", name="ICC_est_int4_cens15")
-
-
-
-
-
-
-################################################################################
-
-# get data for each scenario 1
-results_scen1 <- results %>%
-  group_by(simseed_id, scenario) %>%
-  mutate(nowarnings = sum(is.na(model_warnings))) %>%
-  filter(nowarnings == 4) %>%
-  filter(scenario==1)
-
-# Save each plot of performance measure
-plot_res(results_scen1 , "beta_est", name="scen1")
-plot_res(results_scen1 , "sigma2.f_est", name="scen1")
-plot_res(results_scen1 , "ICC", name="scen1")
-
-# get data for each scenario 2
-results_scen2 <- results %>%
-  group_by(simseed_id, scenario) %>%
-  mutate(nowarnings = sum(is.na(model_warnings))) %>%
-  filter(nowarnings == 4) %>%
-  filter(scenario==2)
-
-# Save each plot of performance measure
-plot_res(results_scen2 , "beta_est", name="scen2")
-plot_res(results_scen2 , "sigma2.f_est", name="scen2")
-plot_res(results_scen2 , "ICC", name="scen2")
-
-
-# get data for each scenario 3
-results_scen3 <- results %>%
-  group_by(simseed_id, scenario) %>%
-  mutate(nowarnings = sum(is.na(model_warnings))) %>%
-  filter(nowarnings == 4) %>%
-  filter(scenario==3)
-
-# Save each plot of performance measure
-plot_res(results_scen3 , "beta_est", name="scen3")
-plot_res(results_scen3 , "sigma2.f_est", name="scen3")
-plot_res(results_scen3 , "ICC", name="scen3")
-
-# get data for each scenario 4
-results_scen4 <- results %>%
-  group_by(simseed_id, scenario) %>%
-  mutate(nowarnings = sum(is.na(model_warnings))) %>%
-  filter(nowarnings == 4) %>%
-  filter(scenario==4)
-
-# Save each plot of performance measure
-plot_res(results_scen4 , "beta_est", name="scen4")
-plot_res(results_scen4 , "sigma2.f_est", name="scen4")
-plot_res(results_scen4 , "ICC", name="scen4")
 
 
 

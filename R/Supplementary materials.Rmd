@@ -362,31 +362,55 @@ The random effect variance from the binomial GLMM is 0.24, and the ICC value usi
 
 ### Example 2: Christmas tree worm re-emergence after a simulated predator attack
 
-These data come from Pezner et al. 2017 <https://academic.oup.com/beheco/article/28/1/154/2453511>. They tested the consistency of hiding time (latency to re-emerge from the hole) within and across days, and the impact of social environment. They tested 30 worms, each received 4 trials within a day and 4 days of sampling for a total of 16 trials per worm. Censored data are not explicitly stated, but there are 5 NA values from 2 individuals that we here assume are censored data (\~1% of data). In the original paper, the authors log-transformed the hiding time variable, used a linear mixed model to get variance estimates, then hand-calculated repeatability.
+Our next example data come from Pezner et al. 2017 <https://academic.oup.com/beheco/article/28/1/154/2453511>. They tested the consistency of hiding time (latency to re-emerge from the hole) within and across days, and the impact of the social environment. They tested 30 worms, each received 4 trials within a day and 4 days of sampling for a total of 16 trials per worm. Censored data are not explicitly stated, but there are 5 NA values from 2 individuals that we here assume are censored data (~1% of data). In the original paper, the authors log-transformed the hiding time variable, used a linear mixed model to get variance estimates, then hand-calculated repeatability.
 
 ```{r E2, echo=F}
 ## Load the data
-ctw = read.csv("CTWemergence.csv")
+ctw = read.csv("https://raw.githubusercontent.com/kelseybmccune/Time-to-Event_Repeatability/main/data/CTWemergence.csv")
 # "HT" variable indicates hiding time, or the latency to emerge; "Whorls" is a visual indicator of age
 
 # 2 individuals have NA values, but it is not explained why. 
-# I'll assume these are censored (the worm didn't emerge in the trial time) and give ceiling value of one unit after other highest value
-ctw$event = ifelse(is.na(ctw$HT),0,1)
-ctw$HT[which(is.na(ctw$HT))]<- 375
+# For this worked example, we assume these are censored (the worm didn't emerge in the trial time) and give ceiling value of one unit after the highest value
+ctw$event = ifelse(is.na(ctw$HT),0,1) # create the event column
+ctw$HT[which(is.na(ctw$HT))]<- 375 # identify ceiling values
 
-## Explode the data
+## Coxme with classic data
+ctw.cox = coxme(Surv(HT, event) ~ Whorls + (1|Worm_ID), data = ctw)
+
+# use functions for ICC, confidence interval and p-value
+coxme_icc_ci(ctw.cox, upper.multiplier = 10) # ICC = 0.33 (0.22 - 0.48)
+coxme_pval(ctw.cox,ctw,boot=100) # Likelihood ratio test and bootstrapping indicates a very small p-value (p = 0).
+
+
+## Coxme with exploded data
 # decide on the intervals
 psych::describe(ctw$HT)
 ctw_int = survSplit(Surv(HT,event) ~ Whorls + Trial_Total + Worm_ID, data = ctw, 
-                    cut = c(50,100,150,200,250,300,350,400), start = "tstart",end = "tstop")
+                    cut = c(94,188,282), start = "tstart",end = "tstop") # 4 time intervals
 
-## Cox model and ICC calculation
 ctw.cox.int = coxme(Surv(tstart,tstop, event)~Whorls + (1|Worm_ID), data=ctw_int)
 
 var <- VarCorr(ctw.cox.int)$Worm_ID[[1]]
-var/(var + pi^2/6) #0.33
+var/(var + pi^2/6) # ICC = 0.33
 # Original paper finds across day hiding time repeatability is 0.42
+
+
+## Binomial glmm model with exploded data 
+ctw_int$interval = NA
+ctw_int$interval = ifelse(ctw_int$tstart == 0,1,ctw_int$interval)
+ctw_int$interval = ifelse(ctw_int$tstart == 94,2,ctw_int$interval)
+ctw_int$interval = ifelse(ctw_int$tstart == 188,3,ctw_int$interval)
+ctw_int$interval[which(is.na(ctw_int$interval))]<-4
+
+b2 <- glmer(event ~ as.factor(interval) + Whorls + (1|Worm_ID), data=ctw_int,
+                 family = binomial(link="cloglog"), nAGQ=7)
+var <- b2@theta^2 # extract the random effect variance from the model output object
+var/(var + pi^2/6) # ICC = 0.26
 ```
+In these data, we also find identical ICC estimates between the coxme models using the classic and exploded data sets. Similar to the frog data, we see that the binomial GLMM results in a smaller ICC value.
+
+
+
 
 ### Example 3: Repeatability of distance to cache a seed in smalll mammals
 

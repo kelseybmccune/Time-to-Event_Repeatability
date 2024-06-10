@@ -10,63 +10,43 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Background
 
-In the manuscript, "Quantifying repeatability or inter-class correlation from time-to-event data: Towards a standardized approach" we describe a method to quantify repeatability from time-to-event data. In this supplementary materials page we demonstrate the use of this method with real data in 3 worked examples. We additionally provide the data and code used in the case study section of the manuscript. Lastly, we present the methods and results for a simulation study to illustrate the relationship among ICC (repeatability) values derived from 4 different models and residual variance estimators.
+In the manuscript, "Repeatability and intra-class correlations from time-to-event data: towards a standardized approach" we describe a method to quantify variances and intra-class correlations (repeatability) from time-to-event data. In this supplementary materials page we demonstrate the use of this method with real data in 3 worked examples. We additionally provide the data and code used in the case study section of the manuscript. Lastly, we present the methods and results for a simulation study to illustrate the relationship among model estimates (beta, random effect variance and intra-class correlation values) derived from 4 different models and implementations, run on data simulated with varying random effect variance, time intervals, and amount of censored data.
 
 ## Worked Examples
 
-Behavior data range widely in the number of individuals as well as the number of repeated measures on each individual. Furthermore, the presence and amount of censored data can vary. We use openly available data to present 3 worked examples that span a range of sample sizes and amount of censoring.
+Time-to-event data range widely in the number of individuals (or other cluster variable) as well as the number of repeated measures on each individual. Furthermore, the presence and amount of censored data can vary. We use openly available data to present 3 worked examples that span a range of sample sizes and amount of censoring.
 
 ### Example 1: Frog aggression towards a simulated intruder
 
-Our first example data set is from Peignier et al. 2022. They investigated whether *A. femoralis* frogs show repeatable aggressive behavior by measuring the latency of territorial males to approach a simulated intruder. There sample size included 51 males with 3.2 +/- 1.31 trials each. Censored data are present (6% of trials) because some males did not approach the simulated intruder. These individuals were given a ceiling value of 300 seconds (the longest trial time). The authors log-transformed this variable and used the Gaussian family in the rpt function (Stoffel et al. 2017).
+Our first example data set is from Peignier et al. 2022. They investigated whether *A. femoralis* frogs show repeatable aggressive behavior by measuring the latency of territorial males to approach a simulated intruder. Their sample size included 51 males with 3.2 $\pm$ 1.31 trials each. Censored data are present (6% of trials) because some males did not approach the simulated intruder. These individuals were given a ceiling value of 300 seconds (the longest trial time). To evaluate repeatability, the authors log-transformed this variable and used the Gaussian family in the rpt function (Stoffel et al. 2017).
 
-In this first worked example, we give a high level of detail on the methods and model types described in the paper. In the subsequent examples, we present the data and run the analysis showing fewer of the intermediary or alternative steps.
+In this first worked example, we give a high level of detail on the methods and model types described in the paper. In the subsequent examples, we present the data and run the analysis while elaborating less on the intermediary or alternative steps.
 
 ```{r E1 - load the data, echo=FALSE}
-library(coxme)
-library(survival)
-library(here)
 
 # Data from Peignier et al. 2022
-fdata = read.csv(here("data", "Frog_personality.csv"))
+fdata = read.csv("https://raw.githubusercontent.com/kelseybmccune/Time-to-Event_Repeatability/main/data/Frog_personality.csv")
 fdata = fdata[which(fdata$sex == "m"),c(1,2,9)] # Only males participated in the aggression test, we only need columns for ID, repetition and latency to approach the simulated intruder. Authors did not include fixed effects, so we won't either.
 fdata = fdata[!is.na(fdata$jump_s),] # Unclear what the NAs represent, but the authors remove these data, so we will too.
-fdata$event = ifelse(fdata$jump_s==300, 0,1) # Create event column that indicates whether the data were censored for that trial.
+fdata$event = ifelse(fdata$jump_s==300, 0,1) # Create event column that indicates whether the event occurred or data were censored for that trial.
 
 head(fdata,20)
 ```
 
-This is a classic (un-exploded) format for animal personality data. We will first conduct a Cox proportional hazards model using the coxme package in R (Therneau, 2022). The coxme function is able to estimate multiple random effects, as well as random slopes. We included a random effect for individual identity as in Equation 3 of the main text, except that there are no fixed effects in this frog model. In this model specification, the response variable is a "survival" object that combines latency to jump ("jump_s") and the event indicator.
+This is a classic (un-exploded) format for animal personality data. 
+
+#### ICC from the coxme function with the classic data set
+We will first conduct a Cox proportional hazards model using the `coxme` package in R (Therneau, 2022). The `coxme` function is able to estimate multiple random effects, as well as random slopes. We included a random effect for individual identity as in Equation 3 of the main text, except that there are no fixed effects in this frog model. In this model specification, the response variable is a "survival" object that combines latency to jump ("jump_s") and the event indicator.
 
 ```{r E1 - coxme continuous model, echo = F}
+library(coxme)
+library(survival)
 c1 = coxme(Surv(jump_s,event)~1+(1|ID), data = fdata)
 
 var <- VarCorr(c1)$ID[[1]] # Random effect variance is 0.40
 ```
 
-However, we need a data set that includes discrete time intervals to show the equivalence in time-to-event ICC values between Cox proportional hazards models and binomial GLMM. This is referred to as an "exploded" data set and we can use the function survSplit in the survival package (Therneau, 2024) to easily transform the data. How to choose interval size... (fill in based on simulation results)
-
-```{r E1 - explode the data, echo=F}
-# decide on the intervals
-psych::describe(fdata$jump_s)
-
-fdata_int = survSplit(Surv(jump_s,event) ~ repetition+ID, data = fdata, 
-                      cut = c(50,100,150,200,250), start = "tstart",end = "tstop")
-
-head(fdata_int,20)
-```
-
-Now we can compare the basic Cox model with the model using the exploded data set. The response variable is again a "survival" object, but now combines the start and stop time of the interval and the event indicator.
-
-```{r E1 - coxme interval model, echo = F}
-c1_int = coxme(Surv(tstart,tstop,event)~1+(1|ID), data = fdata_int)
-
-var <- VarCorr(c1_int)$ID[[1]] # Random effect variance is 0.40
-```
-
-You can see that the variance estimate for the random effect is the same in both Cox models.
-
-We can now estimate the ICC using Equation 7 from the main text. Because of the equivalence of mixed-effects Cox models with binomial generalized linear mixed-effects models with the clog-log link (see below), Equation 7 uses the random effect variance from the Cox model and the binomial GLMM distribution-specific residual variance estimator.
+We can now estimate the ICC using Equation 7 from the main text. Because of the equivalence of a mixed-effects Cox proportional hazards model with the binomial generalized linear mixed-effects model with the clog-log link, Equation 7 uses the random effect variance from the Cox model and the binomial GLMM distribution-specific residual variance estimator (Nakagawa et al. 2017).
 
 ```{r E1 - Parametric ICC calculation, echo = F}
 var/(var + pi^2/6)
@@ -77,7 +57,198 @@ var/(var + pi^2/6)
 
 This yields an ICC value of 0.19.
 
-In Equation 5 of the main text we show the calculation for the non-parametric version of the ICC, Kendall's tau, which assumes a Gamma distribution of the random effect. Additionally, it is not feasible to estimate the non-parametric ICC when there are more than one random effect. We wrote a function to obtain the non-parametric ICC numerically:
+We created two R functions to estimate the p-value and a confidence interval for time-to-event ICCs calculated using `coxme`.
+```{r E1 - p-value and ci functions}
+# Define the function
+# missing values ignored
+
+#' @title comxe_pval
+#' @description This function calculates the p-value of the effect of the random effect in a coxme model. It also provides the p-value of the effect of the random effect using a bootstrapped method.
+#' @param model A coxme model object
+#' @param data The original data used to fit the model
+#' @param boot Number of simulations to run to produce 95 percent confidence intervals for I2. Default is \code{NULL}, where only the point estimate is provided.
+#' @return A vector of p-values
+#' @author Shinichi Nakagawa - s.nakagawa@unsw.edu.au
+#' @author etc
+
+coxme_pval <- function(model, data, boot = NULL) {
+  # Get the original data
+  
+  if(all(class(model) %in% c("coxme")) == FALSE) {stop("Sorry, you need to fit a coxme model of class coxme")}
+  
+  # I think we need to use get the dimension of the data
+
+  response <- as.data.frame(model$y[,1:2])
+  
+  fixed_formula <- as.formula(model$formulaList$fixed)
+  
+  # fit the model without any random effects
+  fit <- survival::coxph(as.formula(fixed_formula), data = data)
+  # loglikelihood ratio test
+  # this is p value of effect of taking all random effects
+  pval<- anova(fit, model)$P[-1]
+  names(pval) <- "liklihood_ratio_test"
+  
+  if(!is.null(boot)){
+  
+  # we need to use replicate to create many vectors of these - randomize the data
+  orders <- replicate(boot, sample(1:nrow(response)))  
+  
+  fixed_formula <- as.character(fixed_formula)  
+  random_formula <-  as.vector(as.character(model$formulaList$random))        
+  formula <- as.formula(paste("Surv(new_time, new_status)", 
+                           "~", 
+                           fixed_formula[3], 
+                           "+",
+                           paste(random_formula, collapse = "+")))
+  data2 <- data
+
+  # randomizaton/permutation tests
+  pb <- progress::progress_bar$new(total = boot,
+                                 format = "Bootstrapping [:bar] :percent ETA: :eta",
+                                 show_after = 0)
+
+  # loop
+  num <- length(summary(model)$random$variance)
+
+  store <- matrix(NA, nrow = num, ncol = boot)
+
+  # Loop over the number of bootstraps
+  for (i in 1:boot) {
+  # Permute the data
+
+  data2$new_time <- response$time[orders[ ,i]]
+  data2$new_status <- response$status[orders[ ,i]]
+
+  # Fit the original coxme model
+  temp  <- tryCatch(coxme(formula, data = data2))
+
+  # get variance component
+   store[ ,i] <- summary(temp)$random$variance
+
+   pb$tick()
+   Sys.sleep(1 / boot)
+
+    }
+   
+  # getting the p value
+   pval2 <- sapply(1:num, function(x) {
+     sum(store[x,] > summary(model)$random$variance[x])/boot}
+     )
+   
+   names(pval2) <- paste(rep("bootstrapped_pval", num), 1:num, sep = "_")
+  }
+
+  if(exists("pval2")) {
+    
+  res <- c(pval, pval2)
+  return(res)
+  
+  } else {
+  res <- pval
+  return(res)
+  }
+
+}
+
+
+#' @title coxme_icc_ci
+#' @description This function calculates the 95 percent confidence interval for the intraclass correlation from the `coxme` objects.
+#' @param model A coxme model object
+#' @param upper.multiplier The multiplier for the upper bound of the confidence interval. Default is 10 (adjust to a higer value if the upper bound is not reached).
+#' @return A vector of the lower, point estimate, and upper bounds of the 95 percent confidence interval for the intraclass correlation
+#' @author Shinichi Nakagawa - s.nakagawa@unsw.edu.au
+#' @author etc
+
+coxme_icc_ci <- function(model, upper.multiplier = 10) {
+  if(all(class(model) %in% c("coxme")) == FALSE)
+    {stop("Sorry, you need to fit a coxme model of class coxme")} 
+  if(any(length(summary(model)$random$variance) > 1)) {stop("Sorry. At the moment, we can only have a model with one random effect.")}
+  
+  # Define a sequence of variance values``
+  # the length of the response
+  n <- nrow(model$y)
+  cut = 100
+  
+  var_point <- summary(model)$random$variance
+  
+  # based on this pdf: https://cran.r-project.org/web/packages/coxme/vignettes/coxme.pdf
+  # upper CI is limited to var_point*(10*log(n)) - so this could fail
+  estvar1 <- seq(0.00000000000001, var_point, length = cut)
+  estvar2 <- seq(var_point, var_point*upper.multiplier, length = cut+1)[-1]
+  estvar <- c(estvar1, estvar2)
+  
+  # Initialize a vector to store the log-likelihood values
+  loglik <- double(cut)
+  
+  # Loop over the variance values
+  for (i in seq_len(cut*2)) {
+    # Fit a coxme model with fixed variance
+    tfit <- update(model, vfixed = estvar[i])
+    
+    # Compute the log-likelihood
+    loglik[i] <- 2 * diff(tfit$loglik)[1]
+  }
+  
+  # Compute the threshold for the 95% confidence interval
+  temp <-  as.numeric(2 * diff(model$loglik)[1]) - loglik
+  
+  # Find the variance values that correspond to the threshold
+  # getting lower and upper CI using profile likelihood
+  lower <- approx(temp[1:(cut)], sqrt(estvar[1:(cut)]), qchisq(.95, 1))$y
+  upper <- approx(temp[(cut + 1):(2*cut)], sqrt(estvar[(cut + 1):(2*cut)]), qchisq(.95, 1))$y
+  
+  # Return the 95% confidence interval
+  ICC_lower <- lower^2 / (lower^2 + pi^2 / 6)
+  if (is.na(ICC_lower)) {
+    ICC_lower <- 0
+  }
+  ICC_point <- var_point / (var_point + pi^2 / 6)
+  ICC_upper <- upper^2 / (upper^2 + pi^2 / 6)
+  names(ICC_lower) <- "lower"
+  names(ICC_point) <- "ICC"
+  names(ICC_upper) <- "upper"
+  
+  return(c(ICC_lower, ICC_point, ICC_upper))
+}
+
+
+```
+
+
+```{r E1 - Frog p-value and ci}
+coxme_pval(c1,fdata,boot=100) # as there were no fixed effects in our model, the likelihood ratio test returns an NA value. Bootstrapping indicates a p-value of 0.01.
+coxme_icc_ci(c1, upper.multiplier = 10) # confidence interval = 0.06 - 0.37
+
+```
+
+
+#### ICC from coxme with an exploded data set
+To check the equivalence in time-to-event ICC values between Cox proportional hazards models and binomial GLMM, we need a data set that includes discrete time intervals. This is referred to as an "exploded" data set (see Fig. 1 in the main text) and we can use the function survSplit in the survival package (Therneau, 2024) to easily transform the data. In a simulation study (see below), we found no difference in model estimates or ICC values when we used 2 or 4 time intervals for the exploded data sets.
+
+```{r E1 - explode the data, echo=F}
+# decide on the intervals
+psych::describe(fdata$jump_s)
+
+fdata_int = survSplit(Surv(jump_s,event) ~ repetition+ID, data = fdata, 
+                      cut = 150, start = "tstart",end = "tstop") # two time intervals
+
+head(fdata_int,20)
+```
+In the exploded data set with two time intervals, for each individual and trial we have a time interval that ranges from 0 to 150 and 150 to 300 (the ceiling latency value for this data set). If the event occurs, the tstop value represents the time at which the frog approaches the speaker.
+
+
+Now we can compare the Cox model output between the classic and the exploded data set. The response variable is again a "survival" object, but now combines the start and stop time of the interval and the event indicator.
+```{r E1 - coxme interval model, echo = F}
+c1_int = coxme(Surv(tstart,tstop,event)~1+(1|ID), data = fdata_int)
+
+var <- VarCorr(c1_int)$ID[[1]] # Random effect variance is still 0.40
+```
+
+You can see that the variance estimate for the random effect is the same in both Cox models.
+
+
+In Equation 5 of the main text we show the calculation for the non-parametric version of the ICC, Kendall's tau, which assumes a Gamma distribution of the random effect. In addition to being non-parametric, another limitation is that it is not feasible to estimate the non-parametric ICC when there are more than one random effects. We wrote a function to obtain the non-parametric ICC numerically:
 
 ```{r E1 - Non-parametric ICC function, echo = F}
 # function obtained from
@@ -157,36 +328,37 @@ fr.lognormal <- function(k,
 ```
 
 ```{r E1 - Non-parametric ICC estimate, echo=, warning=FALSE}
-fr.lognormal(k,s,var,what = "tau")
+c1_ph = coxph(Surv(jump_s, event)~1 + frailty(ID, distribution="gamma"), data=fdata)
+var <- c1_ph$history$`frailty(ID, distribution = "gamma")`[1] # Random effect variance is 0.35, close to that from coxme
+
+fr.lognormal(k,s,var,what = "tau") # $ICC_{np}$ is 0.11
 ```
+The non-parametric ICC ($ICC_{np}$) estimate for these frog data is 0.11.
 
-The non-parametric ICC estimate for these frog data is 0.16.
 
-We now demonstrate the use of the binomial GLMM to analyze the discrete time interval survival data. We use the interval data that we created above (fdata_int). However, we also need to include a column identifying the time interval to include as a fixed effect, which takes the place of the start and stop time from the Cox models.
+#### ICC from binomial GLMM with the exploded data set
+We now demonstrate the use of the binomial GLMM to analyze the exploded survival data. However, we also need to include a column as an identifier of the time interval to include as a fixed effect, which takes the place of the start and stop time from the Cox models.
 
 ```{r E1 - binomial GLMM}
-# we previously told the survSplit function to create intervals every 50 seconds.
+# we previously told the survSplit function to create 2 intervals by splitting the latency values at 150.
 # create column to identify intervals
 fdata_int$interval = NA
-fdata_int$interval =  ifelse(fdata_int$tstart == 0,1,fdata_int$interval)
-fdata_int$interval =  ifelse(fdata_int$tstart == 50,2,fdata_int$interval)
-fdata_int$interval =  ifelse(fdata_int$tstart == 100,3,fdata_int$interval)
-fdata_int$interval =  ifelse(fdata_int$tstart == 150,4,fdata_int$interval)
-fdata_int$interval =  ifelse(fdata_int$tstart == 200,5,fdata_int$interval)
-fdata_int$interval =  ifelse(fdata_int$tstart == 250,6,fdata_int$interval)
+fdata_int$interval =  ifelse(fdata_int$tstart == 0,1,2)
 
 # Run the binomial glmm model
 library(lme4)
 b1 <- glmer(event ~ as.factor(interval) + (1|ID), data=fdata_int,
                  family = binomial(link="cloglog"), nAGQ=7)
-var <- b1@theta^2
+var <- b1@theta^2 # extract the random effect variance from the model output object
 var/(var + pi^2/6)
 
+fr.lognormal(k,s,var,what = "tau")
 ```
 
-The random effect variance from the binomial GLMM is 0.46, and the ICC value using Equation 7 is 0.22.
+The random effect variance from the binomial GLMM is 0.24, and the ICC value using Equation 7 is 0.13.
 
-What if we do not account for censored data? i.e., we eliminate trials where frogs did not respond to simulated intruder.
+
+
 
 ### Example 2: Christmas tree worm re-emergence after a simulated predator attack
 

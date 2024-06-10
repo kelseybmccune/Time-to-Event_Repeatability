@@ -1,13 +1,7 @@
 ---
 title: "Supplementary materials for the manuscript: Repeatability and intra-class correlations from time-to-event data"
 output: html_document
-author: 
-  - 'McCune KB^1^'
-  - 'Stoffel M^2^'
-  - 'Williams C^3^'
-  - 'Dochtermann N^4^'
-  - 'Schielzeth H^5^'
-  - 'Nakagawa S^3,6'
+author: 'Kelsey B. McCune^1^, Martin Stoffel^2^, Coralie Williams^3^, Ned A. Dochtermann^4^, Holger Schielzeth^5^ and Shinichi Nakagawa^3,6^'
 date: "2024-05-08"
 ---
 
@@ -495,7 +489,7 @@ var2/(var2 + pi^2/6) # ICC for SPP
 
 
 ### Data and code for Case Study in the main text
-
+From McCune et al. 2019.
 ```{r Case Study, echo=TRUE, warning=FALSE}
 
 #Latency to solve a door on a puzzle box
@@ -537,7 +531,15 @@ The simulation study was conducted with R (R Core Team, 2024) and using the comp
 
 Bates, D., Maechler, M., Bolker, B., & Walker, S. (2015). Fitting linear mixed-effects models using lme4. *Journal of Statistical Software, 67*(1), 1-48. <https://doi.org/10.18637/jss.v067.i01>
 
+Brehm, A. M., Mortelliti, A., Maynard, G. A., & Zydlewski, J. (2019). Land‐use change and the ecological consequences of personality in small mammals. Ecology Letters, 22(9), 1387-1395. <https://doi.org/10.1111/ele.13324>
+
+McCune, K.B., Jablonski, P.G., Lee, S., Ha, R.R., 2019. Captive jays exhibit reduced problem-solving performance compared to wild conspecifics. Royal Society Open Science 6, 181311. <https://doi.org/10.1098/rsos.181311>
+
 Nakagawa, S., Johnson, P.C.D., Schielzeth, H., 2017. The coefficient of determination R2 and intra-class correlation coefficient from generalized linear mixed-effects models revisited and expanded. Journal of the Royal Society Interface 14. <https://doi.org/10.1098/rsif.2017.0213>
+
+Peignier, M., Araya-Ajoy, Y.G., Bégué, L. et al. Exploring links between personality traits and their social and non-social environments in wild poison frogs. Behav Ecol Sociobiol 76, 93 (2022). <https://doi.org/10.1007/s00265-022-03202-9>
+
+Pezner, A. K., Lim, A. R., Kang, J. J., Armenta, T. C., & Blumstein, D. T. (2016). Hiding behavior in Christmas tree worms on different time scales. Behavioral Ecology, 28(1), 154–163. <https://doi.org/10.1093/beheco/arw140>
 
 R Core Team. (2024). *R: A language and environment for statistical computing*. R Foundation for Statistical Computing. <https://www.R-project.org/>
 

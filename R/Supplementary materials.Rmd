@@ -376,6 +376,7 @@ ctw$HT[which(is.na(ctw$HT))]<- 375 # identify ceiling values
 
 ## Coxme with classic data
 ctw.cox = coxme(Surv(HT, event) ~ Whorls + (1|Worm_ID), data = ctw)
+cox.zph(ctw.cox) # Whorls does change with time, violating the proportional hazards assumption
 
 # use functions for ICC, confidence interval and p-value
 coxme_icc_ci(ctw.cox, upper.multiplier = 10) # ICC = 0.33 (0.22 - 0.48)
@@ -407,54 +408,77 @@ b2 <- glmer(event ~ as.factor(interval) + Whorls + (1|Worm_ID), data=ctw_int,
 var <- b2@theta^2 # extract the random effect variance from the model output object
 var/(var + pi^2/6) # ICC = 0.26
 ```
-In these data, we also find identical ICC estimates between the coxme models using the classic and exploded data sets. Similar to the frog data, we see that the binomial GLMM results in a smaller ICC value.
 
 
 
 
 ### Example 3: Repeatability of distance to cache a seed in smalll mammals
 
-Brehm et al. 2019 (<https://onlinelibrary.wiley.com/doi/full/10.1111/ele.13324>) evaluated seed caching behavior in relation to multiple personality traits and habitat characteristics. They offered artificial seeds for small mammals to cache that had reflective flags attached so that the cached seeds could be relocated and the distance from the food platform could be measured. The data include 31 unique deer mice that cached between 1-12 seeds (mean = 3.31 ± 0.5). Understandably, it can be hard to relocate the cached seeds and so 35% of the caching distances were censored (seeds lost to follow up).
+Brehm et al. 2019 (<https://onlinelibrary.wiley.com/doi/full/10.1111/ele.13324>) evaluated seed caching behavior in relation to multiple personality traits and habitat characteristics. They offered artificial seeds to several species of small mammals that had reflective flags attached so that, if the individual cached the seed, it could be relocated and the distance from the food platform could be measured. The data include 17 short-tailed shrews, 47 red-backed voles and 46 unique deer mice that cached between 1-14 seeds (mean ± se = 3.9 ± 0.73). Understandably, it can be hard to relocate the cached seeds and so 52% of the caching distances were censored (seeds lost to follow up). For our worked example, we considered the repeatability of caching distance as a function of the fixed effect of silviculture (habitat) treatment, and random effects for individual ID and for species. The original paper did not run this particular analysis.
 
 ```{r E3, echo = F}
 ## Load the data
-setwd("/Users/kelseymccune/Documents/GitHub/Time-to-Event_Repeatability/data")
-data<-read.csv("data_seed_pers.csv")
-pm<-subset(data, SPP=="PM") # only one species
+data<-read.csv("https://raw.githubusercontent.com/kelseybmccune/Time-to-Event_Repeatability/main/data/data_seed_pers.csv")
 
-pmdistmov<-subset(pm,REMOVE==1) # distance the seed is dispersed, only looking at seeds that were removed from the feeding platform
-pmdistmov<-subset(pmdistmov, CONS!=1) # remove rows where the seed was consumed close by the feeding platform
-pmdistmov$RECOVERED..Y.N.[which(pmdistmov$DIST..MOVED==15)]<-"Y" # one row seems to indicate the cached seed was found 15m from the feeding platform, but the categorical variable for whether it was removed is an NA 
-table(pmdistmov$RECOVERED..Y.N.) # how many cached seeds did they recover (i.e., how much censored data is there?)
-# 35% of data are censored
-dist = pmdistmov[-which(pmdistmov$ID == "UNK"),c(1,5,6,14,17)] #simplify data frame
+distmov<-data[-which(is.na(data$RECOVERED..Y.N.)),] # distance the seed is dispersed, only looking at seeds that were removed from the feeding platform
+distmov<-subset(distmov, CONS!=1 & REMOVE==1) # remove rows where the seed was consumed close by the feeding platform
+
+
+dist = distmov[-which(distmov$DIST..MOVED == 0),c(1,3,5,14,17)] #simplify data frame
 # the Recovered column is analogous to the event variable in survival analysis. Modify it to be an integer
 dist$event = ifelse(dist$RECOVERED..Y.N.== "Y",1,0)
-dist$event = ifelse(is.na(dist$event),0,dist$event)
-dist$DIST..MOVED[which(is.na(dist$DIST..MOVED))]<-1038 # give ceiling value to NAs
-dist.cox = coxme(Surv(DIST..MOVED, event) ~ TRT + (1|ID), data=dist)
-summary(dist.cox)
-coxme_pval(dist.cox,dist,boot=100)
-coxme_icc_ci(dist.cox) # lower bound of CI is NA because ICC is small (0.05)?
+dist$DIST..MOVED[which(dist$RECOVERED..Y.N. == "N")]<-1038 # give ceiling value to NAs
+dist = dist[-which(is.na(dist$DIST..MOVED)),] # Remove rows where seeds are indicated as recovered, but no distance was listed
+table(dist$RECOVERED..Y.N.) # how many cached seeds did they recover (i.e., how much censored data is there?)
+# 52% of data are censored
+
+## Coxme with classic data set structure
+dist.cox = coxme(Surv(DIST..MOVED, event) ~ TRT + (1|ID) + (1|SPP), data=dist)
+cox.zph(dist.cox) # Fixed effect does not violate proportional hazard assumption
+
+var <- VarCorr(dist.cox)$ID[[1]] # 0.64
+var/(var + pi^2/6) # ICC for ID = 0.28
+var2 <- VarCorr(dist.cox)$SPP[[1]] # 0.37
+var2/(var2 + pi^2/6) # ICC for SPP = 0.18
+
+coxme_pval(dist.cox,dist,boot=100) # bootstrapping: ID p-value < 0.01; SPP p-value < 0.01 
+# likelihood ratio test compares the increase in variance explained by the addition of the random effects over the base model with just a fixed effect.
+coxme_icc_ci(dist.cox) # currently this function only works with one random effect
 
 
 ## Explode the data
-# Create intervals based on the number of events in each interval. Here, 25% of the data are in each of 4 intervals.
-quantile(dist$DIST..MOVED, probs = seq(0,1,0.25),na.rm=T)
-
+# Create intervals
 psych::describe(dist$DIST..MOVED)
 
-dist_int = survSplit(Surv(DIST..MOVED, event) ~ ID, data = dist, 
-                     cut = c(50,146,331.5), start = "tstart",end = "tstop")
+dist_int = survSplit(Surv(DIST..MOVED, event) ~ TRT + ID + SPP, data = dist, 
+                     cut = c(346,692), start = "tstart",end = "tstop",zero=0)
 
 ## Cox model and ICC calculation
-dist.cox.int = coxme(Surv(tstart,tstop, event) ~ 1 + (1|ID), data=dist_int)
-var <- VarCorr(dist.cox.int)$ID[[1]] 
-var/(var + pi^2/6) # 0.05
-# Original paper did not run this particular analysis.
+dist.cox.int = coxme(Surv(tstart,tstop, event) ~ TRT + (1|ID) + (1|SPP), data=dist_int)
+var <- VarCorr(dist.cox.int)$ID[[1]] # 0.64
+var/(var + pi^2/6) # ICC for ID = 0.28
+var2 <- VarCorr(dist.cox.int)$SPP[[1]] # 0.37
+var2/(var2 + pi^2/6) # ICC for SPP = 0.18
+
+## Binomial glmm model with exploded data 
+dist_int$interval = NA
+dist_int$interval = ifelse(dist_int$tstart == 0,1,dist_int$interval)
+dist_int$interval = ifelse(dist_int$tstart == 346,2,dist_int$interval)
+dist_int$interval = ifelse(dist_int$tstart == 692,3,dist_int$interval)
+
+b3 <- glmer(event ~ as.factor(interval) + TRT + (1|ID) + (1|SPP), data=dist_int,
+                 family = binomial(link="cloglog"))
+var <- b3@theta[[1]]^2 # extract the random effect variance from the model output object
+var/(var + pi^2/6) # ICC for ID = 0.15
+var2 <- b3@theta[[2]]^2 # extract the random effect variance from the model output object
+var2/(var2 + pi^2/6) # ICC for SPP = 0.13
+
 ```
 
-### Data and code for Case Study in manuscript
+
+
+
+### Data and code for Case Study in the main text
 
 ```{r Case Study, echo = F}
 
@@ -476,7 +500,7 @@ coxme_icc_ci(solv.su2) # unadjusted ICC
 
 ```
 
-## Simulations (draft)
+## Simulations
 
 We conducted a small simulation study to examine whether model estimates are consistent across four different models and implementations: (1) a Cox proportional hazards model with a normal distribution of the random effect using the `coxme` function from the `coxme` package, (2) a Cox proportional hazards frailty model with a normal distribution of the random effect using `coxph` from the `survival` package, (3) a Cox proportional hazards frailty model with a gamma distribution of the random effect using `coxph` from the `survival` package, and (4) a binomial generalized linear mixed-effects model with a clog-log link using the `glmer` function from the `lme4` package. The models (1), (2) and (3) are described in Equation 3 and model (4) is described in Equation 7 in the main text.
 

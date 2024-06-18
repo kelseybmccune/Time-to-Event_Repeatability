@@ -1,14 +1,14 @@
 ---
 title: "Supplementary materials for the manuscript: Repeatability and intra-class correlations from time-to-event data"
 output: html_document
-author: 'Kelsey B. McCune^1^, Martin Stoffel^2^, Coralie Williams^3^, Ned A. Dochtermann^4^, Holger Schielzeth^5^ and Shinichi Nakagawa^3,6^'
+author: 'Kelsey B. McCune^1^, Coralie Williams^2,3^, Ned A. Dochtermann^4^, Holger Schielzeth^5^ and Shinichi Nakagawa^2,6^'
 date: "2024-05-08"
 ---
 
 ##### Affiliations: 
 1) College of Forestry, Wildlife and Environment, Auburn University, Auburn, AL, USA
-2) The Alan Turing Institute, London, United Kingdom
-3) Evolution & Ecology Centre and School of Biological, Earth and Environmental Sciences, University of New South Wales, Sydney, New South Wales, Australia
+2) Evolution & Ecology Centre and School of Biological, Earth and Environmental Sciences, University of New South Wales, Sydney, New South Wales, Australia
+3) School of Mathematics and Statistics, University of New South Wales, Sydney, New South Wales, Australia
 4) Department of Biological Sciences, North Dakota State University, Fargo, North Dakota, USA
 5) Institute for Ecology and Evolution, Friedrich Schiller University Jena, Jena, Thuringia, Germany
 6) Department of Biological Sciences, University of Alberta, CW 405, Biological Sciences Building, Edmonton, Canada

@@ -6,6 +6,13 @@ author: Kelsey B. McCune^1^, Coralie Williams^2,3^, Ned A. Dochtermann^4^, Holge
 date: "2024-05-08"
 output:
   html_document: default
+    toc: true
+    toc_depth: 3
+    toc_float:true
+      collapsed: false
+      smooth_scroll: true
+    code_folding: hide
+    always_allow_html: yes
   pdf_document: default
 ---
 
@@ -24,15 +31,15 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Background
+# Background
 
 In the manuscript, "Repeatability and intra-class correlations from time-to-event data: towards a standardized approach" we describe a method to quantify variances and intra-class correlations (repeatability) from time-to-event data. In this supplementary materials page we demonstrate the use of this method with real data in 3 worked examples. We additionally provide the data and code used in the case study section of the manuscript. Lastly, we present the methods and results for a simulation study to illustrate the relationship among model estimates (beta, random effect variance and intra-class correlation values) derived from 4 different models and implementations run on data simulated with varying random effect variance, time intervals, and amount of censored data.
 
-## Worked Examples
+# Worked Examples
 
 Time-to-event data range widely in the number of individuals (or other cluster variable) as well as the number of repeated measures on each individual. Furthermore, the presence and amount of censored data can vary. We use openly available data to present 3 worked examples that vary in model parameters, sample sizes and amount of censoring. The first example involves models that do not include fixed effects, but include one random effect. In the second example, the models included 1 fixed effect and 1 random effect, while the third example involves 1 fixed effect and 2 random effects.
 
-### Example 1: Frog aggression towards a simulated intruder
+## Example 1: Frog aggression towards a simulated intruder
 
 Our first example data set is from Peignier et al. 2022. They investigated whether *A. femoralis* frogs show repeatable aggressive behavior by measuring the latency of territorial males to approach a simulated intruder. Their sample size included 51 males with 3.2 $\pm$ 1.31 trials each. Censored data are present (6% of trials) because some males did not approach the simulated intruder. These individuals were given a ceiling value of 300 seconds (the longest trial time). To evaluate repeatability, the authors log-transformed this variable and used the Gaussian family in the rpt function (Stoffel et al. 2017).
 
@@ -51,7 +58,7 @@ head(fdata,10)
 
 This is a classic (un-exploded) format for animal personality data. 
 
-#### ICC from the coxme function with the classic data set
+### ICC from the coxme function with the classic data set
 We will first conduct a Cox proportional hazards model using the `coxme` package in R (Therneau, 2022). The `coxme` function is able to estimate multiple random effects, as well as random slopes. We included a random effect for individual identity as in Equation 3 of the main text, except that there are no fixed effects in this frog model. In this model specification, the response variable is a "survival" object that combines latency to jump ("jump_s") and the event indicator.
 
 ```{r E1 - coxme continuous model, echo = T}
@@ -238,7 +245,7 @@ coxme_icc_ci(c1, upper.multiplier = 10) # confidence interval and ICC estimate
 ```
 
 
-#### ICC from coxme with an exploded data set
+### ICC from coxme with an exploded data set
 To check the equivalence in time-to-event ICC values between Cox proportional hazards models and binomial GLMM, we need a data set that includes discrete time intervals. This is referred to as an "exploded" data set (see Fig. 1 in the main text) and we can use the function survSplit in the survival package (Therneau, 2024) to easily transform the data. In a simulation study (see below), we found no difference in model estimates or ICC values when we used 2 or 4 time intervals for the exploded data sets.
 
 ```{r E1 - explode the data, echo=T}
@@ -351,7 +358,7 @@ fr.lognormal(k,s,var,what = "tau") # non-parametric ICC estimate
 The non-parametric ICC ($ICC_{np}$) estimate for these frog data is 0.14.
 
 
-#### ICC from binomial GLMM with the exploded data set
+### ICC from binomial GLMM with the exploded data set
 We now demonstrate the use of the binomial GLMM to analyze the exploded survival data. However, we also need to include a column as an identifier of the time interval to include as a fixed effect, which takes the place of the start and stop time from the Cox models.
 
 ```{r E1 - binomial GLMM, echo=TRUE, warning=FALSE}
@@ -374,7 +381,7 @@ The random effect variance from the binomial GLMM is 0.24, and the ICC value usi
 
 
 
-### Example 2: Christmas tree worm re-emergence after a simulated predator attack
+## Example 2: Christmas tree worm re-emergence after a simulated predator attack
 
 Our next example data come from Pezner et al. 2017 <https://academic.oup.com/beheco/article/28/1/154/2453511>. They tested the consistency of hiding time (latency to re-emerge from the hole) within and across days, and the impact of the social environment. They tested 30 worms, each received 4 trials within a day and 4 days of sampling for a total of 16 trials per worm. Censored data are not explicitly stated, but there are 5 NA values from 2 individuals that we here assume are censored data (~1% of data). In the original paper, the authors log-transformed the hiding time variable, used a linear mixed model to get variance estimates, then hand-calculated repeatability.
 
@@ -426,7 +433,7 @@ var/(var + pi^2/6)
 
 
 
-### Example 3: Repeatability of distance to cache a seed in smalll mammals
+## Example 3: Repeatability of distance to cache a seed in smalll mammals
 
 Brehm et al. 2019 (<https://onlinelibrary.wiley.com/doi/full/10.1111/ele.13324>) evaluated seed caching behavior in relation to multiple personality traits and habitat characteristics. They offered artificial seeds to several species of small mammals that had reflective flags attached so that, if the individual cached the seed, it could be relocated and the distance from the food platform could be measured. The data include 17 short-tailed shrews, 47 red-backed voles and 46 unique deer mice that cached between 1-14 seeds (mean ± se = 3.9 ± 0.73). Understandably, it can be hard to relocate the cached seeds and so 52% of the caching distances were censored (seeds lost to follow up). For our worked example, we considered the repeatability of caching distance as a function of the fixed effect of silviculture (habitat) treatment, and random effects for individual ID and for species. The original paper did not run this particular analysis.
 
@@ -493,7 +500,7 @@ var2/(var2 + pi^2/6) # ICC for SPP
 
 
 
-### Data and code for Case Study in the main text
+# Data and code for Case Study in the main text
 From McCune et al. 2019.
 ```{r Case Study, echo=TRUE, warning=FALSE}
 
@@ -513,7 +520,7 @@ coxme_icc_ci(solv.su2) # unadjusted ICC
 
 ```
 
-## Simulations
+# Simulations
 
 We conducted a small simulation study to examine whether model estimates are consistent across four different models and implementations: (1) a Cox proportional hazards model with a normal distribution of the random effect using the `coxme` function from the `coxme` package, (2) a Cox proportional hazards frailty model with a normal distribution of the random effect using `coxph` from the `survival` package, (3) a Cox proportional hazards frailty model with a gamma distribution of the random effect using `coxph` from the `survival` package, and (4) a binomial generalized linear mixed-effects model with a clog-log link using the `glmer` function from the `lme4` package. The models (1), (2) and (3) are described in Equation 3 and model (4) is described in Equation 7 in the main text.
 
@@ -532,7 +539,7 @@ Note that 'sigma2.f' refers to the random effect variance.
 
 The simulation study was conducted with R (R Core Team, 2024) and using the computational cluster Katana at UNSW Sydney (UNSW, 2024).
 
-## References
+# References
 
 Bates, D., Maechler, M., Bolker, B., & Walker, S. (2015). Fitting linear mixed-effects models using lme4. *Journal of Statistical Software, 67*(1), 1-48. <https://doi.org/10.18637/jss.v067.i01>
 

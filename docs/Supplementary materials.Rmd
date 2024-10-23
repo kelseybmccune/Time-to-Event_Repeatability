@@ -8,6 +8,7 @@ output:
   html_document: 
     toc: true
     toc_depth: 3
+    number_sections: true
     toc_float:
       collapsed: false
       smooth_scroll: true
@@ -65,6 +66,7 @@ library(survival)
 c1 = coxme(Surv(jump_s,event)~1+(1|ID), data = fdata)
 
 var <- VarCorr(c1)$ID[[1]] # Random effect variance
+var
 ```
 
 We can now estimate the ICC using Equation 7 from the main text. Because of the equivalence of a mixed-effects Cox proportional hazards model with the binomial generalized linear mixed-effects model with the clog-log link, Equation 7 uses the random effect variance from the Cox model and the binomial GLMM distribution-specific residual variance estimator (Nakagawa et al. 2017).
@@ -248,7 +250,7 @@ To check the equivalence in time-to-event ICC values between Cox proportional ha
 
 ```{r E1 - explode the data, echo=T}
 # decide on the intervals
-psych::describe(fdata$jump_s)
+psych::describe(fdata$jump_s) # max value = 300
 
 fdata_int = survSplit(Surv(jump_s,event) ~ repetition+ID, data = fdata, 
                       cut = 150, start = "tstart",end = "tstop") # two time intervals
@@ -263,6 +265,7 @@ Now we can compare the Cox model output between the classic and the exploded dat
 c1_int = coxme(Surv(tstart,tstop,event)~1+(1|ID), data = fdata_int)
 
 var <- VarCorr(c1_int)$ID[[1]]
+var
 ```
 
 You can see that the variance estimate for the random effect is the same in both Cox models.

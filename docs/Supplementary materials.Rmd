@@ -434,7 +434,7 @@ var/(var + pi^2/6)
 
 
 
-## Example 3: Repeatability of distance to cache (bury) a seed in smalll mammals
+## Example 3: Repeatability of distance to cache (bury) a seed in small mammals
 
 Brehm et al. 2019 (<https://onlinelibrary.wiley.com/doi/full/10.1111/ele.13324>) evaluated seed caching behavior in relation to multiple personality traits and habitat characteristics. They offered artificial seeds to several species of small mammals that had reflective flags attached so that, if the individual cached the seed, it could be relocated and the distance from the food platform could be measured. The data include 17 short-tailed shrews, 47 red-backed voles and 46 unique deer mice that cached between 1-14 seeds (mean ± se = 3.9 ± 0.73). Understandably, it can be hard to relocate the cached seeds and so 52% of the caching distances were censored (seeds lost to follow up). For our worked example, we considered the repeatability of caching distance as a function of the fixed effect of silviculture (habitat) treatment, and random effects for individual ID and for species. The original paper did not run this particular analysis.
 

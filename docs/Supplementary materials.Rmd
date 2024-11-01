@@ -15,7 +15,7 @@ output:
   pdf_document: default
 ---
 
-##### Affiliations: 
+**Affiliations:** 
 1) College of Forestry, Wildlife and Environment, Auburn University, Auburn, AL, USA
 2) Evolution & Ecology Centre and School of Biological, Earth and Environmental Sciences, University of New South Wales, Sydney, New South Wales, Australia
 3) School of Mathematics and Statistics, University of New South Wales, Sydney, New South Wales, Australia

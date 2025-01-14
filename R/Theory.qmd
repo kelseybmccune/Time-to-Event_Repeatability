@@ -68,13 +68,12 @@ An issue with the $\text{ICC}_{\text{np}}$ is that it is not a parametric versio
 
 ## Cox proportional-hazards models and generalized linear mixed models
 
-```{=html}
 <!--- Finkelstein, Dianne M. "A proportional hazards model for interval-censored failure time data." Biometrics (1986): 845-854.
 
 Hirsch, Katharina, Andreas Wienke, and Oliver Kuss. "Log-normal frailty models fitted as Poisson generalized linear mixed models." Computer methods and programs in biomedicine 137 (2016): 167-175.
 
 Suresh, Krithika, Cameron Severn, and Debashis Ghosh. "Survival prediction models: an introduction to discrete-time modeling." BMC medical research methodology 22.1 (2022): 207.--->
-```
+
 In the statistical literature, it seems to be well known that the frailty model (Equation 3) can be fitted as a Poisson GLMM (known as, the piece-wise exponential model; e.g., Hirsh et al. 2016) or a binomial GLMM (the discrete-time model; Finkelstein 1986, Suresh et al. 2022; for an accessible account, see Austin 2017). Here, we show the discrete-time model, more specifically, the binomial GLMM with the complementary log-log (cloglog) link can be used to fit a comparable model as Equation 3 by "exploding" the time-to-event data through defining arbitrary discrete time intervals (Figure 1 shows an example of such an exploded data set compared to the original). If we assume we have three (arbitrary discrete) time intervals (*t1*, *t2* & *t3*) This binomial GLMM (without the intercept) is defined as:
 
 $$

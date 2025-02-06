@@ -5,7 +5,7 @@ It is common in animal behavior and cognition research to evaluate consistent in
 ### Contents
  - In our manuscript: "Repeatability and intra-class correlations from time-to-event data: towards a standardized approach" we describe this issue in more detail and present a solution.
 
- - We compiled [supplementary materials](https://kelseybmccune.github.io/Time-to-Event_Repeatability/Supplementary-materials.html) that consist of R code guiding the user through several worked examples from openly accessible data sets. In addition, we present results from a simulation study demonstrating the robustness of our proposed solution in relation to similar methods and varying data inputs. We provide all files from the simulated datasets, which make up of a large R object with a list of 12,000 datasets, at [OSF](https://osf.io/cfhmv/).
+ - We compiled an [online tutorial](https://kelseybmccune.github.io/Time-to-Event_Repeatability/Online-tutorial.html) that consist of R code guiding the user through several worked examples from openly accessible data sets. In addition, we present results from a simulation study demonstrating the robustness of our proposed solution in relation to similar methods and varying data inputs. We provide all files from the simulated datasets, which make up of a large R object with a list of 12,000 datasets, at [OSF](https://osf.io/cfhmv/).
 
  - We wrote a [function in R](https://github.com/kelseybmccune/Time-to-Event_Repeatability/blob/main/R/rptRsurv.R) that estimates the repeatability, as well as a confidence interval and p-value, from time-to-event data using survival analysis and the residual variance estimator we present in the manuscript.
 
